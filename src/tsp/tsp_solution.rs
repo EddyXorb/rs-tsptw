@@ -13,6 +13,15 @@ impl TSPSolution {
         Self { instance, path }
     }
 
+    pub fn get_cost(&self) -> f64 {
+        let mut cost = 0.0;
+
+        for pairs in self.path.windows(2) {
+            cost += self.instance.dist_from_to(pairs[0], pairs[1]);
+        }
+        cost
+    }
+
     pub fn is_valid(&self) -> bool {
         &self.path.len() >= &self.instance.len() && self.is_valid_subsolution()
     }
@@ -56,7 +65,7 @@ mod tests {
     fn create_test_instance() -> Arc<TSPInstance> {
         Arc::new(TSPInstance::new(
             2,
-            vec![vec![1.0, 1.0], vec![2.0, 2.0]],
+            vec![vec![0.0, 1.0], vec![2.0, 0.0]],
             vec![(0.0, 1.0), (1.0, 100.0)],
         ))
     }
@@ -96,5 +105,12 @@ mod tests {
         let empty_solution = TSPSolution::new(create_test_instance(), vec![]);
 
         assert!(empty_solution.is_valid_subsolution());
+    }
+
+    #[test]
+    fn test_cost_works() {
+        let valid_solution = TSPSolution::new(create_test_instance(), vec![0, 1]);
+
+        assert_eq!(valid_solution.get_cost(), 1.0);
     }
 }
