@@ -14,38 +14,36 @@ impl TSPSolution {
     }
 
     pub fn is_valid(&self) -> bool {
-        if &self.path.len() < &self.instance.len() {
-            return false;
-        }
-        return self.is_valid_subsolution();
+        &self.path.len() >= &self.instance.len() && self.is_valid_subsolution()
     }
 
     pub fn is_valid_subsolution(&self) -> bool {
-        if self.path.len() < self.instance.len() {
-            return false;
+        if self.path.is_empty() {
+            return true;
         }
 
-        let mut time: f64 = 0.0;
+        let mut time = 0.0;
         let mut last_visited = self.path[0];
         let mut visited = HashSet::new();
         visited.insert(last_visited);
+
         if self.instance.window_of(last_visited).0 > 0.0 {
             return false;
         }
 
-        for node in &self.path[1..] {
-            if visited.contains(node) {
+        for &node in &self.path[1..] {
+            if !visited.insert(node) {
                 return false;
             }
 
-            visited.insert(*node);
-            time += self.instance.dist_from_to(last_visited, *node);
-            last_visited = *node;
+            time += self.instance.dist_from_to(last_visited, node);
 
-            let current_window = self.instance.window_of(*node);
-            if time < current_window.0 || current_window.1 < time {
+            let (start_time, end_time) = self.instance.window_of(node);
+            if !(start_time..=end_time).contains(&time) {
                 return false;
             }
+
+            last_visited = node;
         }
         true
     }
@@ -69,10 +67,34 @@ mod tests {
 
         assert!(valid_solution.is_valid_subsolution());
         assert!(valid_solution.is_valid());
+    }
 
+    #[test]
+    fn test_invalid_solution() {
         let invalid_solution = TSPSolution::new(create_test_instance(), vec![1, 0]);
 
         assert!(!invalid_solution.is_valid());
         assert!(!invalid_solution.is_valid_subsolution());
+    }
+
+    #[test]
+    fn test_valid_subsolution() {
+        let valid_solution = TSPSolution::new(create_test_instance(), vec![0]);
+
+        assert!(valid_solution.is_valid_subsolution());
+    }
+
+    #[test]
+    fn test_invalid_subsolution() {
+        let invalid_solution = TSPSolution::new(create_test_instance(), vec![1]);
+
+        assert!(!invalid_solution.is_valid_subsolution());
+    }
+
+    #[test]
+    fn test_empty_subsolution_is_valid() {
+        let empty_solution = TSPSolution::new(create_test_instance(), vec![]);
+
+        assert!(empty_solution.is_valid_subsolution());
     }
 }
