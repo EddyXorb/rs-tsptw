@@ -1,3 +1,4 @@
 mod parent_tree;
+mod beamsearch_collection;
 
-pub use parent_tree::ParentTreeNode;
+pub use beamsearch_collection::BeamsearchCollection;
