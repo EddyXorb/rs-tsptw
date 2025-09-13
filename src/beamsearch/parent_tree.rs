@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-pub struct InnerParentTreeNode<T> {
+struct InnerParentTreeNode<T> {
     parent: Option<ParentTreeNode<T>>,
     data: T,
 }
@@ -19,9 +19,9 @@ impl<T> ParentTreeNode<T> {
     pub fn new_child(&self, data: T) -> Self {
         let inner = Arc::new(InnerParentTreeNode {
             parent: Some(ParentTreeNode {
-                inner: self.inner.clone(),
+                inner: Arc::clone(&self.inner),
             }),
-            data: data,
+            data,
         });
 
         Self { inner }
@@ -102,5 +102,14 @@ mod tests {
 
         assert_eq!(ancestors.len(), 10);
         assert_eq!(ancestors, (1..=10).rev().collect::<Vec<i32>>());
+    }
+
+    #[test]
+    fn is_root() {
+        let root = ParentTreeNode::new_root(1.0);
+        let child = root.new_child(2.0);
+
+        assert!(root.is_root());
+        assert!(!child.is_root());
     }
 }
