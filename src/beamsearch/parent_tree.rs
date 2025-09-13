@@ -48,6 +48,14 @@ impl<T> ParentTreeNode<T> {
     }
 }
 
+impl<T> Clone for ParentTreeNode<T> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::rc::Rc;

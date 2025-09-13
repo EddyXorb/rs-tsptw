@@ -62,6 +62,27 @@ where
         self.nodes.truncate(target_size);
         deleted
     }
+
+    pub fn get_best(&self) -> Option<&ParentTreeNode<T>> {
+        if self.sorted {
+            return self.nodes.first();
+        }
+        self.nodes
+            .iter()
+            .min_by(|a, b| a.data().fitness().total_cmp(&b.data().fitness()))
+    }
+}
+
+impl<T> IntoIterator for BeamsearchCollection<T>
+where
+    T: BeamsearchNode,
+{
+    type Item = ParentTreeNode<T>;
+    type IntoIter = std::vec::IntoIter<ParentTreeNode<T>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.nodes.into_iter()
+    }
 }
 
 impl<'a, T> IntoIterator for &'a BeamsearchCollection<T>
@@ -180,6 +201,17 @@ mod tests {
 
         for (node, expected_fitness) in zip(&coll, fitnesses) {
             assert_eq!(node.data().fitness(), expected_fitness);
+        }
+    }
+
+    #[test]
+    fn test_get_best() {
+        let coll = create_test_collection(10);
+
+        let best = coll.get_best().unwrap();
+
+        for node in &coll {
+            assert!(best.data().fitness() <= node.data().fitness());
         }
     }
 }
