@@ -1,4 +1,5 @@
 mod tsp;
+mod beamsearch;
 
 use std::path::PathBuf;
 use tsp::TSPInstance;
