@@ -1,32 +1,50 @@
 use std::sync::Arc;
 
-pub struct ParentTreeNode<T> {
-    parent: Option<Arc<ParentTreeNode<T>>>,
+pub struct InnerParentTreeNode<T> {
+    parent: Option<ParentTreeNode<T>>,
     data: T,
 }
 
+pub struct ParentTreeNode<T> {
+    inner: Arc<InnerParentTreeNode<T>>,
+}
+
 impl<T> ParentTreeNode<T> {
-    pub fn new_root(data: T) -> Self {
-        Self { parent: None, data }
+    pub fn new_child(&self, data: T) -> Self {
+        let inner = Arc::new(InnerParentTreeNode {
+            parent: Some(ParentTreeNode {
+                inner: self.inner.clone(),
+            }),
+            data: data,
+        });
+
+        Self { inner }
     }
 
-    pub fn new_child(parent: Arc<ParentTreeNode<T>>, data: T) -> Self {
+    pub fn new_root(data: T) -> Self {
         Self {
-            parent: Some(parent),
-            data,
+            inner: Arc::new(InnerParentTreeNode { parent: None, data }),
         }
     }
 
     pub fn data(&self) -> &T {
-        &self.data
+        &self.inner.data
     }
 
     pub fn is_root(&self) -> bool {
-        self.parent.is_none()
+        self.inner.parent.is_none()
     }
 
-    pub fn parent(&self) -> Option<&Arc<Self>> {
-        self.parent.as_ref()
+    pub fn parent(&self) -> Option<&ParentTreeNode<T>> {
+        self.inner.parent.as_ref()
+    }
+
+    pub fn parents(&self) -> impl Iterator<Item = &ParentTreeNode<T>> {
+        std::iter::successors(self.parent(), |node| node.parent())
+    }
+
+    pub fn ancestors(&self) -> impl Iterator<Item = &ParentTreeNode<T>> {
+        std::iter::successors(Some(self), |node| node.parent())
     }
 }
 
@@ -43,9 +61,46 @@ mod tests {
 
     #[test]
     fn create_child() {
-        let root = Arc::new(ParentTreeNode::new_root(1.0));
-        let child = ParentTreeNode::new_child(root.clone(), 2.0);
+        let root = ParentTreeNode::new_root(1.0);
+        let child = root.new_child(2.0);
 
-        assert!(Arc::ptr_eq(child.parent().unwrap(), &root));
+        assert!(Arc::ptr_eq(&child.parent().unwrap().inner, &root.inner));
+    }
+
+    #[test]
+    fn parents() {
+        let root = ParentTreeNode::new_root(1.0);
+        let child = root.new_child(2.0);
+
+        let parents: Vec<&ParentTreeNode<f64>> = child.parents().collect();
+
+        assert_eq!(parents.len(), 1);
+        assert_eq!(*parents[0].data(), 1.0);
+    }
+
+    #[test]
+    fn ancestors() {
+        let root = ParentTreeNode::new_root(1.0);
+        let child = root.new_child(2.0);
+
+        let ancestors: Vec<f64> = child.ancestors().map(|n| *n.data()).collect();
+
+        assert_eq!(ancestors.len(), 2);
+        assert_eq!(ancestors, vec![2.0, 1.0]);
+    }
+
+    #[test]
+    fn bigger_tree_works() {
+        let root = ParentTreeNode::new_root(1);
+        let mut child = root;
+        for i in 2..=10 {
+            let _child = child.new_child(i*100);
+            child = child.new_child(i);
+        }
+
+        let ancestors: Vec<i32> = child.ancestors().map(|n| *n.data()).collect();
+
+        assert_eq!(ancestors.len(), 10);
+        assert_eq!(ancestors, (1..=10).rev().collect::<Vec<i32>>());
     }
 }

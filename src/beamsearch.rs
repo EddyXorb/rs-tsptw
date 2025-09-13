@@ -1,3 +1,3 @@
 mod parent_tree;
 
-pub use parent_tree::ParentTreeNode;
+pub use parent_tree::InnerParentTreeNode;
