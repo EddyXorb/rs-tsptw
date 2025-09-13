@@ -10,6 +10,12 @@ pub struct ParentTreeNode<T> {
 }
 
 impl<T> ParentTreeNode<T> {
+    pub fn new_root(data: T) -> Self {
+        Self {
+            inner: Arc::new(InnerParentTreeNode { parent: None, data }),
+        }
+    }
+
     pub fn new_child(&self, data: T) -> Self {
         let inner = Arc::new(InnerParentTreeNode {
             parent: Some(ParentTreeNode {
@@ -19,12 +25,6 @@ impl<T> ParentTreeNode<T> {
         });
 
         Self { inner }
-    }
-
-    pub fn new_root(data: T) -> Self {
-        Self {
-            inner: Arc::new(InnerParentTreeNode { parent: None, data }),
-        }
     }
 
     pub fn data(&self) -> &T {
@@ -94,7 +94,7 @@ mod tests {
         let root = ParentTreeNode::new_root(1);
         let mut child = root;
         for i in 2..=10 {
-            let _child = child.new_child(i*100);
+            let _child = child.new_child(i * 100);
             child = child.new_child(i);
         }
 
