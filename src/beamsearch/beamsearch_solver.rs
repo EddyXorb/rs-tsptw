@@ -54,19 +54,31 @@ where
 
     pub fn solve(mut self) -> SolverResult<T> {
         let mut all_expansions: usize = 0;
+        let mut all_similars_removed: usize = 0;
         loop {
             let nr_expanded = self.expand();
 
+            all_similars_removed += self.coll.remove_similars(&self.is_similar);
+
             if nr_expanded == 0 {
-                return SolverResult {
-                    best: self.coll.get_best().cloned(),
-                    nr_expansions: all_expansions,
-                };
+                return self.create_result(all_expansions, all_similars_removed);
             }
 
             all_expansions += nr_expanded;
 
             self.coll.keep_best(self.params.beam_width);
+        }
+    }
+
+    fn create_result(self, all_expansions: usize, all_similars_removed: usize) -> SolverResult<T> {
+        println!(
+            "Finished. Expanded {} and removed {} similars.",
+            all_expansions, all_similars_removed
+        );
+
+        SolverResult {
+            best: self.coll.get_best().cloned(),
+            nr_expansions: all_expansions,
         }
     }
 
@@ -95,7 +107,10 @@ where
 #[cfg(test)]
 mod tests {
 
-    use crate::beamsearch::beamsearch_solver::{BeamsearchSolver, Node, Params, is_never_similar};
+    use crate::beamsearch::{
+        beamsearch_collection::BeamsearchNode,
+        beamsearch_solver::{BeamsearchSolver, Node, Params, is_never_similar},
+    };
 
     use super::super::mocks::TestNode;
 
@@ -109,8 +124,8 @@ mod tests {
         return vec![];
     }
 
-    fn bifurcate_expander(n: &Node<TestNode>) -> Vec<TestNode> {
-        if n.data().dummy_level < 10.0 {
+    fn bifurcate_expander<const Last_level: i32>(n: &Node<TestNode>) -> Vec<TestNode> {
+        if n.data().dummy_level < Last_level as f64 {
             return vec![
                 TestNode {
                     dummy_fitness: n.data().dummy_fitness + 1.0,
@@ -145,7 +160,7 @@ mod tests {
     fn test_big_solve() {
         let result = BeamsearchSolver::new(
             vec![TestNode::default()],
-            bifurcate_expander,
+            bifurcate_expander::<10>,
             is_never_similar,
             Params { beam_width: 4 },
         )
@@ -158,4 +173,16 @@ mod tests {
         assert!(&best.data().dummy_level == &10.0);
     }
 
+    #[test]
+    fn test_is_similar_effectively_prunes() {
+        let result = BeamsearchSolver::new(
+            vec![TestNode::default()],
+            bifurcate_expander::<10>,
+            |x, y| x.data() == y.data(),
+            Params { beam_width: 1000 },
+        )
+        .solve();
+
+        assert_eq!(result.nr_expansions, 10 * 2);
+    }
 }

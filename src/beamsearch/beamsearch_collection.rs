@@ -71,6 +71,44 @@ where
             .iter()
             .min_by(|a, b| a.data().fitness().total_cmp(&b.data().fitness()))
     }
+
+    pub fn remove_similars<S>(&mut self, is_similar: S) -> usize
+    where
+        S: Fn(&Node<T>, &Node<T>) -> bool,
+    {
+        self.sort();
+
+        let mut keep_mask = vec![true; self.nodes.len()];
+
+        for outer_i in (0..(self.nodes.len())).rev() {
+            if !keep_mask[outer_i] {
+                continue;
+            }
+            for inner_i in (0..(outer_i)).rev() {
+                if !keep_mask[inner_i] {
+                    continue;
+                }
+
+                let o = &self.nodes[outer_i];
+                let i = &self.nodes[inner_i];
+
+                if is_similar(o, i) {
+                    keep_mask[outer_i] = false;
+                }
+            }
+        }
+
+        let mut removed: usize = 0;
+        for i in (0..self.nodes.len()).rev() {
+            if !keep_mask[i] {
+                self.nodes.swap_remove(i);
+                removed += 1;
+                self.sorted = false;
+            }
+        }
+
+        removed
+    }
 }
 
 impl<T> IntoIterator for BeamsearchCollection<T>
@@ -100,7 +138,7 @@ where
 #[cfg(test)]
 mod tests {
 
-    use std::iter::zip;
+    use std::{iter::zip, process::Child};
 
     use super::super::mocks::TestNode;
     use super::*;
@@ -191,5 +229,60 @@ mod tests {
         for node in &coll {
             assert!(best.data().fitness() <= node.data().fitness());
         }
+    }
+
+    #[test]
+    fn test_remove_similars_removes_correct_number() {
+        let mut coll = BeamsearchCollection::<TestNode>::default();
+
+        let root = Node::new_root(TestNode {
+            dummy_fitness: 0.0,
+            dummy_level: 0.0,
+        });
+
+        for _ in 0..10 {
+            coll.add(root.new_child(TestNode::default()));
+        }
+
+        assert_eq!(coll.len(), 10);
+
+        let removed = coll.remove_similars(|a, b| a.data() == b.data());
+
+        assert_eq!(coll.len(), 1);
+        assert_eq!(removed, 9);
+    }
+
+    #[test]
+    fn test_remove_similars_removes_only_worse() {
+        let mut coll_rising_fitness = BeamsearchCollection::<TestNode>::default();
+        let mut coll_decreasing_fitness = BeamsearchCollection::<TestNode>::default();
+
+        let root = Node::new_root(TestNode {
+            dummy_fitness: 0.0,
+            dummy_level: 0.0,
+        });
+
+        for i in 0..10 {
+            let mut child = TestNode::default();
+            child.dummy_fitness = i as f64;
+            coll_rising_fitness.add(root.new_child(child));
+
+            let mut child = TestNode::default();
+            child.dummy_fitness = -i as f64;
+            coll_decreasing_fitness.add(root.new_child(child));
+        }
+
+        assert_eq!(coll_rising_fitness.len(), 10);
+        assert_eq!(coll_decreasing_fitness.len(), 10);
+
+        //all are equal because all share the same level
+        coll_rising_fitness.remove_similars(|a, b| a.data().level() == b.data().level());
+        coll_decreasing_fitness.remove_similars(|a, b| a.data().level() == b.data().level());
+
+        assert_eq!(coll_rising_fitness.len(), 1);
+        assert_eq!(coll_decreasing_fitness.len(), 1);
+
+        assert_eq!(coll_rising_fitness.nodes[0].data().fitness(), 0.0);
+        assert_eq!(coll_decreasing_fitness.nodes[0].data().fitness(), -9.0);
     }
 }

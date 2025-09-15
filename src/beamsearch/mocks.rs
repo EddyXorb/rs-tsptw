@@ -1,5 +1,6 @@
 use super::beamsearch_collection::BeamsearchNode;
 
+#[derive(PartialEq)]
 pub struct TestNode {
     pub dummy_fitness: f64,
     pub dummy_level: f64,
