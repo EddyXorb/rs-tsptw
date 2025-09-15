@@ -1,6 +1,7 @@
-use crate::beamsearch::parent_tree::ParentTreeNode;
-
 use super::beamsearch_collection::{BeamsearchCollection, BeamsearchNode};
+use super::parent_tree::ParentTreeNode;
+
+pub type NodeType<T> = ParentTreeNode<T>;
 
 pub struct Params {
     beam_width: usize,
@@ -21,22 +22,22 @@ where
     pub fn new(start_nodes: Vec<T>, params: Params) -> Self {
         let mut coll = BeamsearchCollection::default();
         for node in start_nodes {
-            coll.add(ParentTreeNode::new_root(node));
+            coll.add(NodeType::new_root(node));
         }
 
         Self { coll, params }
     }
 
-    pub fn solve<F>(mut self, expander: F) -> Option<ParentTreeNode<T>>
+    pub fn solve<F>(mut self, expander: F) -> Option<NodeType<T>>
     where
-        F: Fn(&T) -> Vec<T>,
+        F: Fn(&NodeType<T>) -> Vec<T>,
     {
         loop {
             let old_coll = std::mem::take(&mut self.coll);
 
             let mut nr_expanded = 0;
             for node in &old_coll {
-                let children = expander(node.data());
+                let children = expander(node);
                 nr_expanded += children.len();
 
                 for child in children {

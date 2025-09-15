@@ -1,4 +1,4 @@
-use super::parent_tree::ParentTreeNode;
+use super::beamsearch_solver::NodeType;
 
 pub trait BeamsearchNode {
     fn fitness(&self) -> f64;
@@ -9,7 +9,7 @@ pub struct BeamsearchCollection<T>
 where
     T: BeamsearchNode,
 {
-    nodes: Vec<ParentTreeNode<T>>,
+    nodes: Vec<NodeType<T>>,
     sorted: bool,
 }
 
@@ -33,11 +33,11 @@ where
         self.nodes.len()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &ParentTreeNode<T>> {
+    pub fn iter(&self) -> impl Iterator<Item = &NodeType<T>> {
         self.nodes.iter()
     }
 
-    pub fn add(&mut self, node: ParentTreeNode<T>) {
+    pub fn add(&mut self, node: NodeType<T>) {
         self.nodes.push(node);
         self.sorted = false;
     }
@@ -63,7 +63,7 @@ where
         deleted
     }
 
-    pub fn get_best(&self) -> Option<&ParentTreeNode<T>> {
+    pub fn get_best(&self) -> Option<&NodeType<T>> {
         if self.sorted {
             return self.nodes.first();
         }
@@ -77,8 +77,8 @@ impl<T> IntoIterator for BeamsearchCollection<T>
 where
     T: BeamsearchNode,
 {
-    type Item = ParentTreeNode<T>;
-    type IntoIter = std::vec::IntoIter<ParentTreeNode<T>>;
+    type Item = NodeType<T>;
+    type IntoIter = std::vec::IntoIter<NodeType<T>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.nodes.into_iter()
@@ -89,8 +89,8 @@ impl<'a, T> IntoIterator for &'a BeamsearchCollection<T>
 where
     T: BeamsearchNode,
 {
-    type Item = &'a ParentTreeNode<T>;
-    type IntoIter = std::slice::Iter<'a, ParentTreeNode<T>>;
+    type Item = &'a NodeType<T>;
+    type IntoIter = std::slice::Iter<'a, NodeType<T>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.nodes.iter()
@@ -131,7 +131,7 @@ mod tests {
     fn create_test_collection(size: usize) -> BeamsearchCollection<TestNode> {
         let mut rng = StdRng::seed_from_u64(42);
 
-        let root = ParentTreeNode::new_root(TestNode {
+        let root = NodeType::new_root(TestNode {
             dummy_fitness: 0.0,
             dummy_level: 0.0,
         });
