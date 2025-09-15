@@ -1,4 +1,4 @@
-use super::beamsearch_solver::NodeType;
+use super::beamsearch_solver::Node;
 
 pub trait BeamsearchNode {
     fn fitness(&self) -> f64;
@@ -9,7 +9,7 @@ pub struct BeamsearchCollection<T>
 where
     T: BeamsearchNode,
 {
-    nodes: Vec<NodeType<T>>,
+    nodes: Vec<Node<T>>,
     sorted: bool,
 }
 
@@ -33,11 +33,11 @@ where
         self.nodes.len()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &NodeType<T>> {
+    pub fn iter(&self) -> impl Iterator<Item = &Node<T>> {
         self.nodes.iter()
     }
 
-    pub fn add(&mut self, node: NodeType<T>) {
+    pub fn add(&mut self, node: Node<T>) {
         self.nodes.push(node);
         self.sorted = false;
     }
@@ -63,7 +63,7 @@ where
         deleted
     }
 
-    pub fn get_best(&self) -> Option<&NodeType<T>> {
+    pub fn get_best(&self) -> Option<&Node<T>> {
         if self.sorted {
             return self.nodes.first();
         }
@@ -77,8 +77,8 @@ impl<T> IntoIterator for BeamsearchCollection<T>
 where
     T: BeamsearchNode,
 {
-    type Item = NodeType<T>;
-    type IntoIter = std::vec::IntoIter<NodeType<T>>;
+    type Item = Node<T>;
+    type IntoIter = std::vec::IntoIter<Node<T>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.nodes.into_iter()
@@ -89,8 +89,8 @@ impl<'a, T> IntoIterator for &'a BeamsearchCollection<T>
 where
     T: BeamsearchNode,
 {
-    type Item = &'a NodeType<T>;
-    type IntoIter = std::slice::Iter<'a, NodeType<T>>;
+    type Item = &'a Node<T>;
+    type IntoIter = std::slice::Iter<'a, Node<T>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.nodes.iter()
@@ -102,36 +102,14 @@ mod tests {
 
     use std::iter::zip;
 
+    use super::super::mocks::TestNode;
     use super::*;
     use rand::{Rng, SeedableRng, rngs::StdRng};
-    struct TestNode {
-        dummy_fitness: f64,
-        dummy_level: f64,
-    }
-
-    impl Default for TestNode {
-        fn default() -> Self {
-            Self {
-                dummy_fitness: 0.0,
-                dummy_level: 0.0,
-            }
-        }
-    }
-
-    impl BeamsearchNode for TestNode {
-        fn fitness(&self) -> f64 {
-            self.dummy_fitness
-        }
-
-        fn level(&self) -> f64 {
-            self.dummy_level
-        }
-    }
 
     fn create_test_collection(size: usize) -> BeamsearchCollection<TestNode> {
         let mut rng = StdRng::seed_from_u64(42);
 
-        let root = NodeType::new_root(TestNode {
+        let root = Node::new_root(TestNode {
             dummy_fitness: 0.0,
             dummy_level: 0.0,
         });
