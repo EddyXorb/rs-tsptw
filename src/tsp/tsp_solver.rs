@@ -7,12 +7,11 @@ use super::tsp_solution::TSPSolution;
 struct TSPNode {
     pub time: f64,
     pub target: usize,
-    pub distance: f64,
 }
 
 impl BeamsearchNode for TSPNode {
     fn fitness(&self) -> f64 {
-        self.distance
+        self.time
     }
 
     fn level(&self) -> f64 {
@@ -32,9 +31,8 @@ fn expander(node: &Node<TSPNode>, instance: &TSPInstance) -> Vec<TSPNode> {
 
     remaining_nodes
         .map(|next_target| TSPNode {
-            time: instance.dist_from_to(last_target, next_target),
+            time: node.data().time + instance.dist_from_to(last_target, next_target),
             target: next_target,
-            distance: node.data().distance + instance.dist_from_to(last_target, next_target),
         })
         .collect()
 }
@@ -43,7 +41,6 @@ pub fn solve_tsp(instance: TSPInstance) -> Option<TSPSolution> {
     let start_node = TSPNode {
         time: 0.0,
         target: 0,
-        distance: 0.0,
     };
 
     let result = BeamsearchSolver::new(
@@ -60,9 +57,9 @@ pub fn solve_tsp(instance: TSPInstance) -> Option<TSPSolution> {
 
     let best_node = result.best.unwrap();
     println!(
-        "Found best result with nr_expansions {} and distance {}",
+        "Found best result with nr_expansions {} and time {}",
         result.nr_expansions,
-        &best_node.data().distance
+        &best_node.data().time
     );
     let mut path: Vec<usize> = best_node
         .ancestors()
@@ -114,13 +111,11 @@ mod tests {
         let node = Node::new_root(TSPNode {
             time: 0.0,
             target: 0,
-            distance: 0.0,
         });
         let expanded = expander(&node, &instance);
 
         assert_eq!(expanded.len(), 1);
         let node = &expanded[0];
-        assert_eq!(node.distance, 1.0);
         assert_eq!(node.time, 1.0);
         assert_eq!(node.target, 1);
     }
