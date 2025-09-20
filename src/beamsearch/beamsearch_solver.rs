@@ -63,8 +63,10 @@ where
             all_similars_removed += all_similars_removed;
 
             println!(
-                "Expanded {} and removed {} similars",
-                nr_expanded, similars_removed
+                "Coll.-size: {}. Expanded {} and removed {} similars",
+                self.coll.len(),
+                nr_expanded,
+                similars_removed
             );
 
             if nr_expanded == 0 {

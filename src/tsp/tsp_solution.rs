@@ -49,8 +49,8 @@ impl TSPSolution {
             return false;
         }
 
-        for &node in &self.path[1..] {
-            if !visited.insert(node) {
+        for (cnt, &node) in self.path[1..self.path.len()].iter().enumerate() {
+            if !visited.insert(node) && cnt < self.path.len() - 2 {
                 println!(
                     "Invalid sobsolution because node {} was already visited",
                     node
@@ -68,6 +68,14 @@ impl TSPSolution {
 
             last_visited = node;
         }
+        if let Some(last) = self.path.last()
+            && self.path.len() == self.get_instance().len() + 1
+        {
+            if *last != self.path[0] {
+                println!("Invalid subsolution because last node is not start node");
+                return false;
+            }
+        }
         true
     }
 }
@@ -80,13 +88,13 @@ mod tests {
         Arc::new(TSPInstance::new(
             2,
             vec![vec![0.0, 1.0], vec![2.0, 0.0]],
-            vec![(0.0, 1.0), (1.0, 100.0)],
+            vec![(0.0, 101.0), (1.0, 100.0)],
         ))
     }
 
     #[test]
     fn test_valid_solution() {
-        let valid_solution = TSPSolution::new(create_test_instance(), vec![0, 1]);
+        let valid_solution = TSPSolution::new(create_test_instance(), vec![0, 1, 0]);
 
         assert!(valid_solution.is_valid_subsolution());
         assert!(valid_solution.is_valid());
@@ -94,7 +102,7 @@ mod tests {
 
     #[test]
     fn test_invalid_solution() {
-        let invalid_solution = TSPSolution::new(create_test_instance(), vec![1, 0]);
+        let invalid_solution = TSPSolution::new(create_test_instance(), vec![1, 0, 1]);
 
         assert!(!invalid_solution.is_valid());
         assert!(!invalid_solution.is_valid_subsolution());
