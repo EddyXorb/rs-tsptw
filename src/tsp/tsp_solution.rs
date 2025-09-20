@@ -30,6 +30,22 @@ impl TSPSolution {
         cost
     }
 
+    pub fn print_times(&self) {
+        let mut sum = 0.0;
+        for node in self.path.windows(2) {
+            let dist = self.get_instance().dist_from_to(node[0], node[1]);
+            sum += dist;
+            println!(
+                "{:3} -> {:3} : time {:<7.2} time sum {:<7.2} time window {:?}",
+                node[0],
+                node[1],
+                dist,
+                sum,
+                self.get_instance().window_of(node[1])
+            );
+        }
+    }
+
     pub fn is_valid(&self) -> bool {
         self.path.len() == &self.instance.len() + 1 && self.is_valid_subsolution()
     }
@@ -62,7 +78,7 @@ impl TSPSolution {
 
             let (start_time, end_time) = self.instance.window_of(node);
             if !(start_time..=end_time).contains(&time) {
-                println! {"Invalid subsolution because start/end time {start_time}/{end_time} of time window does not contain {time}"}
+                println! {"Invalid subsolution in node {cnt} (which is city {node}) because start/end time {start_time}/{end_time} of time window does not contain {time}"}
                 return false;
             }
 
