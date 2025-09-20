@@ -13,6 +13,14 @@ impl TSPSolution {
         Self { instance, path }
     }
 
+    pub fn get_instance(&self) -> &TSPInstance {
+        &self.instance
+    }
+
+    pub fn get_path(&self) -> &Vec<usize> {
+        &self.path
+    }
+
     pub fn get_cost(&self) -> f64 {
         let mut cost = 0.0;
 
@@ -37,11 +45,16 @@ impl TSPSolution {
         visited.insert(last_visited);
 
         if self.instance.window_of(last_visited).0 > 0.0 {
+            println!("Invalid subsolution because first node's time_window starts at > 0.0.");
             return false;
         }
 
         for &node in &self.path[1..] {
             if !visited.insert(node) {
+                println!(
+                    "Invalid sobsolution because node {} was already visited",
+                    node
+                );
                 return false;
             }
 
@@ -49,6 +62,7 @@ impl TSPSolution {
 
             let (start_time, end_time) = self.instance.window_of(node);
             if !(start_time..=end_time).contains(&time) {
+                println! {"Invalid subsolution because start/end time {start_time}/{end_time} of time window does not contain {time}"}
                 return false;
             }
 

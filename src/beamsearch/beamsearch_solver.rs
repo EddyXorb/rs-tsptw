@@ -1,6 +1,7 @@
-use super::beamsearch_collection::{BeamsearchCollection, BeamsearchNode};
+use super::beamsearch_collection::BeamsearchCollection;
 use super::parent_tree::ParentTreeNode;
-use std::marker::PhantomData;
+
+pub use super::beamsearch_collection::BeamsearchNode;
 
 pub type Node<T> = ParentTreeNode<T>;
 
@@ -58,7 +59,13 @@ where
         loop {
             let nr_expanded = self.expand();
 
-            all_similars_removed += self.coll.remove_similars(&self.is_similar);
+            let similars_removed = self.coll.remove_similars(&self.is_similar);
+            all_similars_removed += all_similars_removed;
+
+            println!(
+                "Expanded {} and removed {} similars",
+                nr_expanded, similars_removed
+            );
 
             if nr_expanded == 0 {
                 return self.create_result(all_expansions, all_similars_removed);

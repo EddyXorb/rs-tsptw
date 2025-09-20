@@ -1,5 +1,6 @@
 use std::{fmt, path::PathBuf};
 
+#[derive(Debug)]
 pub struct TSPInstance {
     num_cities: usize,
     distances: Vec<Vec<f64>>,
@@ -84,6 +85,11 @@ impl TSPInstance {
         self.time_windows[node]
     }
 
+    pub fn window_of_contains(&self, node: usize, time: f64) -> bool {
+        assert!(node < self.num_cities);
+        let (start, end) = self.window_of(node);
+        (start..=end).contains(&time)
+    }
 }
 
 impl fmt::Display for TSPInstance {
