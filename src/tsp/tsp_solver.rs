@@ -25,7 +25,8 @@ fn expander(node: &Node<TSPNode>, instance: &TSPInstance) -> Vec<TSPNode> {
     let last_target = node.data().target;
     let visited_nodes: Vec<usize> = node.ancestors().map(|x| x.data().target).collect();
     let remaining_nodes = (0..instance.len()).filter(|i| {
-        !visited_nodes.contains(i)
+        (!visited_nodes.contains(i)
+            || (visited_nodes.len() == instance.len() && i == visited_nodes.last().unwrap()))
             && instance.window_of_contains(*i, time + instance.dist_from_to(last_target, *i))
     });
 
@@ -95,7 +96,7 @@ mod tests {
                 vec![1000.0, 0.0, 1000.0],
                 vec![1000.0, 1000.0, 0.0],
             ],
-            vec![(0.0, 1.0), (1.0, 2000.0), (1.0, 2000.0)],
+            vec![(0.0, 2001.0), (1.0, 2000.0), (1.0, 2000.0)],
         )
     }
 
@@ -135,8 +136,8 @@ mod tests {
         let sol = result.unwrap();
 
         print!("{:?}", sol.get_instance());
-        assert_eq!(*sol.get_path(), vec![0, 2, 1]);
-        assert_eq!(sol.get_cost(), 1001.0);
+        assert_eq!(*sol.get_path(), vec![0, 2, 1, 0]);
+        assert_eq!(sol.get_cost(), 2001.0);
         assert!(sol.is_valid());
     }
 }

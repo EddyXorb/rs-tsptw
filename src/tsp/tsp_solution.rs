@@ -31,7 +31,7 @@ impl TSPSolution {
     }
 
     pub fn is_valid(&self) -> bool {
-        &self.path.len() >= &self.instance.len() && self.is_valid_subsolution()
+        self.path.len() == &self.instance.len() + 1 && self.is_valid_subsolution()
     }
 
     pub fn is_valid_subsolution(&self) -> bool {
@@ -106,6 +106,13 @@ mod tests {
 
         assert!(!invalid_solution.is_valid());
         assert!(!invalid_solution.is_valid_subsolution());
+    }
+
+    #[test]
+    fn test_invalid_solution_because_no_roundtrip() {
+        let invalid_solution = TSPSolution::new(create_test_instance(), vec![0, 1]);
+
+        assert!(!invalid_solution.is_valid());
     }
 
     #[test]
