@@ -1,5 +1,5 @@
 use super::beamsearch_solver::Node;
-use rayon::prelude::IntoParallelIterator;
+use rayon::prelude::*;
 
 pub trait BeamsearchNode {
     fn fitness(&self) -> f64;
@@ -8,27 +8,15 @@ pub trait BeamsearchNode {
 
 pub struct BeamsearchCollection<T>
 where
-    T: BeamsearchNode,
+    T: BeamsearchNode + Send + Sync,
 {
     nodes: Vec<Node<T>>,
     sorted: bool,
 }
 
-impl<T> IntoParallelIterator for BeamsearchCollection<T>
-where
-    T: BeamsearchNode + Send + Sync,
-{
-    type Iter = rayon::vec::IntoIter<Node<T>>;
-    type Item = Node<T>;
-
-    fn into_par_iter(self) -> Self::Iter {
-        self.nodes.into_par_iter()
-    }
-}
-
 impl<T> Default for BeamsearchCollection<T>
 where
-    T: BeamsearchNode,
+    T: BeamsearchNode + Send + Sync,
 {
     fn default() -> Self {
         Self {
@@ -40,7 +28,7 @@ where
 
 impl<T> BeamsearchCollection<T>
 where
-    T: BeamsearchNode,
+    T: BeamsearchNode + Send + Sync,
 {
     pub fn len(&self) -> usize {
         self.nodes.len()
@@ -126,7 +114,7 @@ where
 
 impl<T> IntoIterator for BeamsearchCollection<T>
 where
-    T: BeamsearchNode,
+    T: BeamsearchNode + Send + Sync,
 {
     type Item = Node<T>;
     type IntoIter = std::vec::IntoIter<Node<T>>;
@@ -138,13 +126,37 @@ where
 
 impl<'a, T> IntoIterator for &'a BeamsearchCollection<T>
 where
-    T: BeamsearchNode,
+    T: BeamsearchNode + Send + Sync,
 {
     type Item = &'a Node<T>;
     type IntoIter = std::slice::Iter<'a, Node<T>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.nodes.iter()
+    }
+}
+
+impl<T> IntoParallelIterator for BeamsearchCollection<T>
+where
+    T: BeamsearchNode + Send + Sync,
+{
+    type Iter = rayon::vec::IntoIter<Node<T>>;
+    type Item = Node<T>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        self.nodes.into_par_iter()
+    }
+}
+
+impl<'a, T> IntoParallelIterator for &'a BeamsearchCollection<T>
+where
+    T: BeamsearchNode + Send + Sync,
+{
+    type Iter = rayon::slice::Iter<'a, Node<T>>;
+    type Item = &'a Node<T>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        self.nodes.par_iter()
     }
 }
 

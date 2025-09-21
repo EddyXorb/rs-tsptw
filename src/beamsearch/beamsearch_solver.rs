@@ -23,7 +23,7 @@ pub fn is_never_similar<T>(_a: &Node<T>, _b: &Node<T>) -> bool {
 
 pub struct BeamsearchSolver<T, F, S, V>
 where
-    T: BeamsearchNode,
+    T: BeamsearchNode + Send + Sync,
     F: Fn(&Node<T>) -> Vec<T>,
     S: Fn(&Node<T>, &Node<T>) -> bool,
     V: Fn(&Node<T>) -> bool,
@@ -37,8 +37,8 @@ where
 
 impl<T, F, S, V> BeamsearchSolver<T, F, S, V>
 where
-    T: BeamsearchNode,
-    F: Fn(&Node<T>) -> Vec<T>,
+    T: BeamsearchNode + Send + Sync,
+    F: Fn(&Node<T>) -> Vec<T> + Send + Sync,
     S: Fn(&Node<T>, &Node<T>) -> bool,
     V: Fn(&Node<T>) -> bool,
 {
@@ -113,13 +113,21 @@ where
 
         let mut nr_expanded = 0;
 
-        for node in &old_coll {
-            let children = (self.expander)(node);
+        let results: Vec<_> = old_coll
+            .par_iter()
+            .map(|node| {
+                let children = (self.expander)(node);
+                children
+                    .into_iter()
+                    .map(|child| node.new_child(child))
+                    .collect::<Vec<_>>()
+            })
+            .collect();
 
-            nr_expanded += children.len();
-
-            for child in children {
-                self.coll.add(node.new_child(child));
+        for expanded_children in results {
+            nr_expanded += expanded_children.len();
+            for child in expanded_children {
+                self.coll.add(child)
             }
         }
 
