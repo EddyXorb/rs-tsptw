@@ -46,7 +46,7 @@ pub fn solve_tsp(instance: TSPInstance) -> Option<TSPSolution> {
     let result = BeamsearchSolver::new(
         vec![start_node],
         |node| expander(node, &instance),
-        |x, y| false,
+        |_x, _y| false,
         Params { beam_width: 1000000 },
     )
     .solve();

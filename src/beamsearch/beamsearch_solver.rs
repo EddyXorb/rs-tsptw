@@ -17,7 +17,7 @@ where
     pub nr_expansions: usize,
 }
 
-pub fn is_never_similar<T>(a: &Node<T>, b: &Node<T>) -> bool {
+pub fn is_never_similar<T>(_a: &Node<T>, _b: &Node<T>) -> bool {
     false
 }
 
@@ -130,8 +130,8 @@ mod tests {
         return vec![];
     }
 
-    fn bifurcate_expander<const Last_level: i32>(n: &Node<TestNode>) -> Vec<TestNode> {
-        if n.data().dummy_level < Last_level as f64 {
+    fn bifurcate_expander<const LAST_LEVEL: i32>(n: &Node<TestNode>) -> Vec<TestNode> {
+        if n.data().dummy_level < LAST_LEVEL as f64 {
             return vec![
                 TestNode {
                     dummy_fitness: n.data().dummy_fitness + 1.0,
