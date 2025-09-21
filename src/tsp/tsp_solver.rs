@@ -6,12 +6,13 @@ use super::tsp_solution::TSPSolution;
 
 struct TSPNode {
     pub time: f64,
+    pub dist: f64,
     pub target: usize,
 }
 
 impl BeamsearchNode for TSPNode {
     fn fitness(&self) -> f64 {
-        self.time
+        self.dist
     }
 
     fn level(&self) -> f64 {
@@ -21,6 +22,8 @@ impl BeamsearchNode for TSPNode {
 
 fn expander(node: &Node<TSPNode>, instance: &TSPInstance) -> Vec<TSPNode> {
     let time = node.data().time;
+    let dist = node.data().dist;
+
     let last_target = node.data().target;
     let visited_nodes: Vec<usize> = node.ancestors().map(|x| x.data().target).collect();
     let remaining_nodes = (0..instance.len()).filter(|i| {
@@ -34,14 +37,16 @@ fn expander(node: &Node<TSPNode>, instance: &TSPInstance) -> Vec<TSPNode> {
             time: (node.data().time + instance.dist_from_to(last_target, next_target))
                 .max(instance.window_of(next_target).0),
             target: next_target,
+            dist: dist + instance.dist_from_to(last_target, next_target),
         })
         .collect()
 }
 
 pub fn solve_tsp(instance: TSPInstance, beam_width: usize) -> Option<TSPSolution> {
     let start_node = TSPNode {
-        time: 0.0,
+        time: instance.window_of(0).0,
         target: 0,
+        dist: 0.0,
     };
 
     let result = BeamsearchSolver::new(
@@ -83,7 +88,7 @@ mod tests {
     use crate::{
         beamsearch::beamsearch_solver::Node,
         tsp::{
-            TSPInstance,
+            TSPInstance, TimeDist,
             tsp_solver::{TSPNode, expander, solve_tsp},
         },
     };
@@ -115,6 +120,7 @@ mod tests {
         let node = Node::new_root(TSPNode {
             time: 0.0,
             target: 0,
+            dist: 0.0,
         });
         let expanded = expander(&node, &instance);
 
@@ -122,6 +128,7 @@ mod tests {
         let node = &expanded[0];
         assert_eq!(node.time, 2.0);
         assert_eq!(node.target, 1);
+        assert_eq!(node.dist, 1.0);
     }
 
     #[test]
@@ -134,10 +141,15 @@ mod tests {
 
         let sol = result.unwrap();
 
-        println!("{:?}", sol.get_instance());
-        sol.print_times();
+        println!("{sol}");
         assert_eq!(*sol.get_path(), vec![0, 2, 1, 0]);
-        assert_eq!(sol.get_cost(), 1200.0);
+        assert_eq!(
+            sol.get_time_distance(),
+            TimeDist {
+                time: 1200.0,
+                dist: 1101.0
+            }
+        );
         assert!(sol.is_valid());
     }
 }

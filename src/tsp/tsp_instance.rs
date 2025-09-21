@@ -81,7 +81,12 @@ impl TSPInstance {
     }
 
     pub fn window_of(&self, node: usize) -> (f64, f64) {
-        assert!(node < self.num_cities);
+        assert!(
+            node < self.num_cities,
+            "node: {} cities: {}",
+            node,
+            self.num_cities
+        );
         self.time_windows[node]
     }
 

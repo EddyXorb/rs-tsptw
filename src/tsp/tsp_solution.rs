@@ -1,11 +1,61 @@
 use std::collections::HashSet;
+use std::fmt::Display;
+use std::iter::zip;
+use std::ops::Add;
 use std::sync::Arc;
 
 use super::TSPInstance;
 
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct TimeDist {
+    pub time: f64,
+    pub dist: f64,
+}
+
+impl Add for TimeDist {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        TimeDist {
+            time: self.time + rhs.time,
+            dist: self.dist + rhs.dist,
+        }
+    }
+}
+
 pub struct TSPSolution {
     instance: Arc<TSPInstance>,
     path: Vec<usize>,
+}
+
+impl Display for TSPSolution {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let time_distance_diffs = self.get_time_distance_diffs();
+        let mut overall_dist = 0.0;
+        let mut overall_time = 0.0;
+        let mut overall_wait_time = 0.0;
+        for (time_dist, start_end) in zip(time_distance_diffs, self.path.windows(2)) {
+            let wait_time = time_dist.time - time_dist.dist;
+            overall_dist += time_dist.dist;
+            overall_time += time_dist.time;
+            overall_wait_time += wait_time;
+
+            writeln!(
+                f,
+                "{:3} -> {:3} : time {:<7.2} dist {:<7.2} wait time {:<7.2} time sum {:<7.2} dist sum {:<7.2} wait sum {:<7.2} time window {:?}",
+                start_end[0],
+                start_end[1],
+                time_dist.time,
+                time_dist.dist,
+                wait_time.max(0.0),
+                overall_time,
+                overall_dist,
+                overall_wait_time,
+                self.instance.window_of(start_end[1])
+            ).unwrap();
+        }
+        Ok(())
+    }
 }
 
 impl TSPSolution {
@@ -21,33 +71,32 @@ impl TSPSolution {
         &self.path
     }
 
-    pub fn get_cost(&self) -> f64 {
-        let mut cost = self.instance.window_of(self.path[0]).0;
+    pub fn get_time_distance_diffs(&self) -> Vec<TimeDist> {
+        let mut time = 0.0;
 
+        let mut out: Vec<TimeDist> = vec![];
         for pairs in self.path.windows(2) {
-            cost += self.instance.dist_from_to(pairs[0], pairs[1]);
-            cost = cost.max(self.instance.window_of(pairs[1]).0); // for wait time
+            let start = pairs[0];
+            let end = pairs[1];
+            let next_distance = self.instance.dist_from_to(start, end);
+            let time_diff = (time + next_distance).max(self.instance.window_of(end).0) - time;
+            time += time_diff;
+            out.push(TimeDist {
+                time: time_diff,
+                dist: next_distance,
+            });
         }
-        cost
+        out
     }
 
-    pub fn print_times(&self) {
-        let mut sum: f64 = 0.0;
-        for node in self.path.windows(2) {
-            let dist = self.get_instance().dist_from_to(node[0], node[1]);
-            sum += dist;
-            let wait_time = sum.max(self.get_instance().window_of(node[1]).0) - sum;
-            sum += wait_time;
-            println!(
-                "{:3} -> {:3} : current time {:<7.2} wait time {:<7.2} time sum {:<7.2} time window {:?}",
-                node[0],
-                node[1],
-                dist,
-                wait_time,
-                sum,
-                self.get_instance().window_of(node[1])
-            );
-        }
+    pub fn get_time_distance(&self) -> TimeDist {
+        self.get_time_distance_diffs().iter().fold(
+            TimeDist {
+                time: self.instance.window_of(self.path[0]).0,
+                dist: 0.0,
+            },
+            |x, y| x + y.clone(),
+        )
     }
 
     pub fn is_valid(&self) -> bool {
@@ -106,7 +155,7 @@ mod tests {
         Arc::new(TSPInstance::new(
             2,
             vec![vec![0.0, 1.0], vec![2.0, 0.0]],
-            vec![(0.0, 101.0), (1.0, 2.0)],
+            vec![(0.0, 101.0), (2.0, 2.0)],
         ))
     }
 
@@ -157,7 +206,13 @@ mod tests {
     fn test_cost_works() {
         let valid_solution = TSPSolution::new(create_test_instance(), vec![0, 1]);
 
-        assert_eq!(valid_solution.get_cost(), 1.0);
+        assert_eq!(
+            valid_solution.get_time_distance(),
+            TimeDist {
+                time: 2.0,
+                dist: 1.0
+            }
+        );
     }
 
     #[test]
@@ -175,7 +230,13 @@ mod tests {
             Arc::new(TSPInstance::new(1, vec![vec![0.0]], vec![(100.0, 101.0)]));
         let sol = TSPSolution::new(single_city_instance, vec![0]);
 
-        assert_eq!(sol.get_cost(), 100.0);
+        assert_eq!(
+            sol.get_time_distance(),
+            TimeDist {
+                time: 100.0,
+                dist: 0.0
+            }
+        );
         assert!(sol.is_valid())
     }
 
@@ -188,7 +249,34 @@ mod tests {
         ));
         let sol = TSPSolution::new(two_city_instance, vec![0, 1, 0]);
 
-        assert_eq!(sol.get_cost(), 2000.0);
+        assert_eq!(
+            sol.get_time_distance(),
+            TimeDist {
+                time: 2000.0,
+                dist: 0.0
+            }
+        );
         assert!(sol.is_valid())
+    }
+
+    #[test]
+    fn test_time_distance_diffs() {
+        let instance = create_test_instance();
+        let sol = TSPSolution::new(instance, vec![0, 1, 0]);
+
+        let time_distances = sol.get_time_distance_diffs();
+        assert_eq!(
+            time_distances,
+            vec![
+                TimeDist {
+                    time: 2.0,
+                    dist: 1.0
+                },
+                TimeDist {
+                    time: 2.0,
+                    dist: 2.0
+                }
+            ]
+        );
     }
 }
