@@ -27,16 +27,16 @@ impl TSPInstance {
     // The next num_cities lines contain the time windows, with each line containing two floating-point numbers.
     pub fn from_file(path: PathBuf) -> Self {
         let content = std::fs::read_to_string(&path)
-            .expect(&format!("Failed to read file {}", path.display()));
+            .unwrap_or_else(|_| panic!("Failed to read file {}", path.display()));
 
-        assert!(content.len() > 0);
+        assert!(!content.is_empty());
 
         let mut lines = content.lines();
 
         let num_cities_str = lines.next().unwrap();
         let num_cities: usize = num_cities_str
             .parse()
-            .expect(&format!("Could not convert {} to usize!", num_cities_str));
+            .unwrap_or_else(|_| panic!("Could not convert {} to usize!", num_cities_str));
 
         let distance_lines_str: Vec<&str> = lines.by_ref().take(num_cities).collect();
         assert!(distance_lines_str.len() == num_cities);
@@ -65,14 +65,14 @@ impl TSPInstance {
             .collect();
 
         TSPInstance {
-            num_cities: num_cities,
-            distances: distances,
-            time_windows: time_windows,
+            num_cities,
+            distances,
+            time_windows,
         }
     }
 
     pub fn len(&self) -> usize {
-        return self.num_cities;
+        self.num_cities
     }
 
     pub fn dist_from_to(&self, from: usize, to: usize) -> f64 {

@@ -51,7 +51,7 @@ pub fn solve_tsp(instance: TSPInstance) -> Option<TSPSolution> {
     )
     .solve();
 
-    if !result.best.is_some() {
+    if result.best.is_none() {
         return None;
     }
 

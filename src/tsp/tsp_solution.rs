@@ -83,12 +83,10 @@ impl TSPSolution {
         }
         if let Some(last) = self.path.last()
             && self.path.len() == self.get_instance().len() + 1
-        {
-            if *last != self.path[0] {
+            && *last != self.path[0] {
                 println!("Invalid subsolution because last node is not start node");
                 return false;
             }
-        }
         true
     }
 }
