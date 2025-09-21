@@ -22,24 +22,27 @@ impl TSPSolution {
     }
 
     pub fn get_cost(&self) -> f64 {
-        let mut cost = 0.0;
+        let mut cost = self.instance.window_of(self.path[0]).0;
 
         for pairs in self.path.windows(2) {
             cost += self.instance.dist_from_to(pairs[0], pairs[1]);
+            cost = cost.max(self.instance.window_of(pairs[0]).0); // for wait time
         }
         cost
     }
 
     pub fn print_times(&self) {
-        let mut sum = 0.0;
+        let mut sum: f64 = 0.0;
         for node in self.path.windows(2) {
             let dist = self.get_instance().dist_from_to(node[0], node[1]);
-            sum += dist;
+            let wait_time = sum.max(self.get_instance().window_of(node[1]).0) - sum;
+            sum += dist + wait_time;
             println!(
-                "{:3} -> {:3} : time {:<7.2} time sum {:<7.2} time window {:?}",
+                "{:3} -> {:3} : current time {:<7.2} wait time {:<7.2} time sum {:<7.2} time window {:?}",
                 node[0],
                 node[1],
                 dist,
+                wait_time,
                 sum,
                 self.get_instance().window_of(node[1])
             );
@@ -47,7 +50,9 @@ impl TSPSolution {
     }
 
     pub fn is_valid(&self) -> bool {
-        self.path.len() == &self.instance.len() + 1 && self.is_valid_subsolution()
+        // if we have only one city, this is already a roundtrip, otherwise we need one more step to get back to the deposit.
+        self.path.len() == &self.instance.len() + (if self.instance.len() == 1 { 0 } else { 1 })
+            && self.is_valid_subsolution()
     }
 
     pub fn is_valid_subsolution(&self) -> bool {
@@ -83,10 +88,11 @@ impl TSPSolution {
         }
         if let Some(last) = self.path.last()
             && self.path.len() == self.get_instance().len() + 1
-            && *last != self.path[0] {
-                println!("Invalid subsolution because last node is not start node");
-                return false;
-            }
+            && *last != self.path[0]
+        {
+            println!("Invalid subsolution because last node is not start node");
+            return false;
+        }
         true
     }
 }
@@ -99,7 +105,7 @@ mod tests {
         Arc::new(TSPInstance::new(
             2,
             vec![vec![0.0, 1.0], vec![2.0, 0.0]],
-            vec![(0.0, 101.0), (1.0, 100.0)],
+            vec![(0.0, 101.0), (1.0, 2.0)],
         ))
     }
 
@@ -116,7 +122,6 @@ mod tests {
         let invalid_solution = TSPSolution::new(create_test_instance(), vec![1, 0, 1]);
 
         assert!(!invalid_solution.is_valid());
-        assert!(!invalid_solution.is_valid_subsolution());
     }
 
     #[test]
@@ -135,7 +140,7 @@ mod tests {
 
     #[test]
     fn test_invalid_subsolution() {
-        let invalid_solution = TSPSolution::new(create_test_instance(), vec![1]);
+        let invalid_solution = TSPSolution::new(create_test_instance(), vec![1, 0, 1]);
 
         assert!(!invalid_solution.is_valid_subsolution());
     }
@@ -178,9 +183,9 @@ mod tests {
         let two_city_instance = Arc::new(TSPInstance::new(
             2,
             vec![vec![0.0, 0.0], vec![0.0, 0.0]],
-            vec![(0.0, 1000.0), (2000.0, 3000.0)],
+            vec![(0.0, 2000.0), (2000.0, 3000.0)],
         ));
-        let sol = TSPSolution::new(two_city_instance, vec![0]);
+        let sol = TSPSolution::new(two_city_instance, vec![0, 1, 0]);
 
         assert_eq!(sol.get_cost(), 2000.0);
         assert!(sol.is_valid())
