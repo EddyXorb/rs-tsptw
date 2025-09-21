@@ -21,25 +21,34 @@ pub fn is_never_similar<T>(_a: &Node<T>, _b: &Node<T>) -> bool {
     false
 }
 
-pub struct BeamsearchSolver<T, F, S>
+pub struct BeamsearchSolver<T, F, S, V>
 where
     T: BeamsearchNode,
     F: Fn(&Node<T>) -> Vec<T>,
     S: Fn(&Node<T>, &Node<T>) -> bool,
+    V: Fn(&Node<T>) -> bool,
 {
     coll: BeamsearchCollection<T>,
     expander: F,
     is_similar: S,
+    is_valid_solution: V,
     params: Params,
 }
 
-impl<T, F, S> BeamsearchSolver<T, F, S>
+impl<T, F, S, V> BeamsearchSolver<T, F, S, V>
 where
     T: BeamsearchNode,
     F: Fn(&Node<T>) -> Vec<T>,
     S: Fn(&Node<T>, &Node<T>) -> bool,
+    V: Fn(&Node<T>) -> bool,
 {
-    pub fn new(start_nodes: Vec<T>, expander: F, is_similar: S, params: Params) -> Self {
+    pub fn new(
+        start_nodes: Vec<T>,
+        expander: F,
+        is_similar: S,
+        is_valid_solution: V,
+        params: Params,
+    ) -> Self {
         let mut coll = BeamsearchCollection::default();
         for node in start_nodes {
             coll.add(Node::new_root(node));
@@ -49,6 +58,7 @@ where
             coll,
             expander,
             is_similar,
+            is_valid_solution,
             params,
         }
     }
@@ -85,8 +95,15 @@ where
             all_expansions, all_similars_removed
         );
 
+        let best = self.coll.get_best().cloned();
+        if best.is_some() && (&self.is_valid_solution)(&best.unwrap()) {
+            return SolverResult {
+                best: self.coll.get_best().cloned(),
+                nr_expansions: all_expansions,
+            };
+        }
         SolverResult {
-            best: self.coll.get_best().cloned(),
+            best: None,
             nr_expansions: all_expansions,
         }
     }
@@ -152,6 +169,7 @@ mod tests {
             vec![TestNode::default()],
             base_expander,
             is_never_similar,
+            |_n| true,
             Params { beam_width: 2 },
         )
         .solve()
@@ -168,6 +186,7 @@ mod tests {
             vec![TestNode::default()],
             bifurcate_expander::<10>,
             is_never_similar,
+            |_n| true,
             Params { beam_width: 4 },
         )
         .solve();
@@ -185,10 +204,24 @@ mod tests {
             vec![TestNode::default()],
             bifurcate_expander::<10>,
             |x, y| x.data() == y.data(),
+            |_n| true,
             Params { beam_width: 1000 },
         )
         .solve();
 
         assert_eq!(result.nr_expansions, 10 * 2);
+    }
+
+    #[test]
+    fn test_is_valid_solution_checks_invalid_solution() {
+        let result = BeamsearchSolver::new(
+            vec![TestNode::default()],
+            base_expander,
+            is_never_similar,
+            |_n| false,
+            Params { beam_width: 2 },
+        )
+        .solve();
+        assert!(result.best.is_none());
     }
 }

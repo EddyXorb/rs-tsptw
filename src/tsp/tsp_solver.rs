@@ -20,6 +20,12 @@ impl BeamsearchNode for TSPNode {
     }
 }
 
+fn make_tsp_solution_from_node(instance: Arc<TSPInstance>, node: &Node<TSPNode>) -> TSPSolution {
+    let mut path: Vec<usize> = node.ancestors().map(|node| node.data().target).collect();
+    path.reverse();
+    TSPSolution::new(instance, path)
+}
+
 fn expander(node: &Node<TSPNode>, instance: &TSPInstance) -> Vec<TSPNode> {
     let time = node.data().time;
     let dist = node.data().dist;
@@ -48,11 +54,13 @@ pub fn solve_tsp(instance: TSPInstance, beam_width: usize) -> Option<TSPSolution
         target: 0,
         dist: 0.0,
     };
+    let arc_instance = Arc::new(instance);
 
     let result = BeamsearchSolver::new(
         vec![start_node],
-        |node| expander(node, &instance),
+        |node| expander(node, &arc_instance),
         |_x, _y| false,
+        |n| make_tsp_solution_from_node(arc_instance.clone(), n).is_valid(),
         Params {
             beam_width: beam_width,
         },
@@ -65,17 +73,13 @@ pub fn solve_tsp(instance: TSPInstance, beam_width: usize) -> Option<TSPSolution
 
     let best_node = result.best.unwrap();
     println!(
-        "Found best result with nr_expansions {} and time {}",
+        "Found best result with distance {},  nr_expansions {} and time {}",
+        &best_node.data().dist,
         result.nr_expansions,
         &best_node.data().time
     );
-    let mut path: Vec<usize> = best_node
-        .ancestors()
-        .map(|node| node.data().target)
-        .collect();
-    path.reverse();
 
-    let solution = TSPSolution::new(Arc::new(instance), path);
+    let solution = make_tsp_solution_from_node(arc_instance, &best_node);
 
     println! {"Best solution: {:?}",solution.get_path()};
     assert!(solution.is_valid_subsolution());
