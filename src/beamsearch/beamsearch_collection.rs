@@ -1,4 +1,5 @@
 use super::beamsearch_solver::Node;
+use rayon::prelude::IntoParallelIterator;
 
 pub trait BeamsearchNode {
     fn fitness(&self) -> f64;
@@ -11,6 +12,18 @@ where
 {
     nodes: Vec<Node<T>>,
     sorted: bool,
+}
+
+impl<T> IntoParallelIterator for BeamsearchCollection<T>
+where
+    T: BeamsearchNode + Send + Sync,
+{
+    type Iter = rayon::vec::IntoIter<Node<T>>;
+    type Item = Node<T>;
+
+    fn into_par_iter(self) -> Self::Iter {
+        self.nodes.into_par_iter()
+    }
 }
 
 impl<T> Default for BeamsearchCollection<T>

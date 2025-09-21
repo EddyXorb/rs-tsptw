@@ -1,7 +1,7 @@
 use super::beamsearch_collection::BeamsearchCollection;
-use super::parent_tree::ParentTreeNode;
-
 pub use super::beamsearch_collection::BeamsearchNode;
+use super::parent_tree::ParentTreeNode;
+use rayon::prelude::*;
 
 pub type Node<T> = ParentTreeNode<T>;
 
@@ -72,13 +72,6 @@ where
             let similars_removed = self.coll.remove_similars(&self.is_similar);
             all_similars_removed += all_similars_removed;
 
-            println!(
-                "Coll.-size: {}. Expanded {} and removed {} similars",
-                self.coll.len(),
-                nr_expanded,
-                similars_removed
-            );
-
             if nr_expanded == 0 {
                 return self.create_result(all_expansions, all_similars_removed);
             }
@@ -86,6 +79,13 @@ where
             all_expansions += nr_expanded;
 
             self.coll.keep_best(self.params.beam_width);
+
+            println!(
+                "Coll.-size: {}. Expanded {} and removed {} similars",
+                self.coll.len(),
+                nr_expanded,
+                similars_removed
+            );
         }
     }
 
@@ -112,6 +112,7 @@ where
         let old_coll = std::mem::take(&mut self.coll);
 
         let mut nr_expanded = 0;
+
         for node in &old_coll {
             let children = (self.expander)(node);
 

@@ -56,6 +56,8 @@ impl<T> Clone for ParentTreeNode<T> {
     }
 }
 
+//unsafe impl<T> Send for ParentTreeNode<T> where T: Send {}
+
 #[cfg(test)]
 mod tests {
     use std::rc::Rc;
