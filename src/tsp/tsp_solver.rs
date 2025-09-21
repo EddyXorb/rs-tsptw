@@ -48,7 +48,7 @@ fn expander(node: &Node<TSPNode>, instance: &TSPInstance) -> Vec<TSPNode> {
         .collect()
 }
 
-pub fn solve_tsp(instance: TSPInstance, beam_width: usize) -> Option<TSPSolution> {
+pub fn solve_tsp(instance: TSPInstance, params: Params) -> Option<TSPSolution> {
     let start_node = TSPNode {
         time: instance.window_of(0).0,
         target: 0,
@@ -61,9 +61,7 @@ pub fn solve_tsp(instance: TSPInstance, beam_width: usize) -> Option<TSPSolution
         |node| expander(node, &arc_instance),
         |_x, _y| false,
         |n| make_tsp_solution_from_node(arc_instance.clone(), n).is_valid(),
-        Params {
-            beam_width: beam_width,
-        },
+        params,
     )
     .solve();
 
@@ -90,10 +88,9 @@ pub fn solve_tsp(instance: TSPInstance, beam_width: usize) -> Option<TSPSolution
 #[cfg(test)]
 mod tests {
     use crate::{
-        beamsearch::beamsearch_solver::Node,
+        beamsearch::{beamsearch_solver::Node, Params},
         tsp::{
-            TSPInstance, TimeDist,
-            tsp_solver::{TSPNode, expander, solve_tsp},
+            tsp_solver::{expander, solve_tsp, TSPNode}, TSPInstance, TimeDist
         },
     };
 
@@ -139,7 +136,13 @@ mod tests {
     pub fn simple_test() {
         let instance = create_test_instance();
 
-        let result = solve_tsp(instance, 100);
+        let result = solve_tsp(
+            instance,
+            Params {
+                beam_width: 100,
+                prune_similars: true,
+            },
+        );
 
         assert!(result.is_some());
 

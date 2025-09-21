@@ -21,7 +21,7 @@ where
     fn default() -> Self {
         Self {
             nodes: Default::default(),
-            sorted: true,
+            sorted: true
         }
     }
 }

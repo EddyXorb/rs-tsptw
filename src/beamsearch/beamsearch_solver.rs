@@ -2,11 +2,13 @@ use super::beamsearch_collection::BeamsearchCollection;
 pub use super::beamsearch_collection::BeamsearchNode;
 use super::parent_tree::ParentTreeNode;
 use rayon::prelude::*;
+use std::time::Instant;
 
 pub type Node<T> = ParentTreeNode<T>;
 
 pub struct Params {
     pub beam_width: usize,
+    pub prune_similars: bool,
 }
 
 pub struct SolverResult<T>
@@ -66,11 +68,22 @@ where
     pub fn solve(mut self) -> SolverResult<T> {
         let mut all_expansions: usize = 0;
         let mut all_similars_removed: usize = 0;
-        loop {
-            let nr_expanded = self.expand();
 
-            let similars_removed = self.coll.remove_similars(&self.is_similar);
-            all_similars_removed += all_similars_removed;
+        loop {
+            let iteration_start = Instant::now();
+
+            let expand_start = Instant::now();
+            let nr_expanded = self.expand();
+            let expand_duration = expand_start.elapsed();
+
+            let similar_start = Instant::now();
+            let similars_removed = if self.params.prune_similars {
+                self.coll.remove_similars(&self.is_similar)
+            } else {
+                0
+            };
+            let similar_duration = similar_start.elapsed();
+            all_similars_removed += similars_removed;
 
             if nr_expanded == 0 {
                 return self.create_result(all_expansions, all_similars_removed);
@@ -78,13 +91,21 @@ where
 
             all_expansions += nr_expanded;
 
+            let keep_best_start = Instant::now();
             self.coll.keep_best(self.params.beam_width);
+            let keep_best_duration = keep_best_start.elapsed();
+
+            let iteration_duration = iteration_start.elapsed();
 
             println!(
-                "Coll.-size: {}. Expanded {} and removed {} similars",
+                "Coll.-size: {}. Expanded {} (in {:.0}ms) and removed {} similars (in {:.0}ms), shrinked (in {:.0}ms), total time {:.0}ms",
                 self.coll.len(),
                 nr_expanded,
-                similars_removed
+                expand_duration.as_secs_f64() * 1000.0,
+                similars_removed,
+                similar_duration.as_secs_f64() * 1000.0,
+                keep_best_duration.as_secs_f64() * 1000.0,
+                iteration_duration.as_secs_f64() * 1000.0
             );
         }
     }
@@ -179,7 +200,10 @@ mod tests {
             base_expander,
             is_never_similar,
             |_n| true,
-            Params { beam_width: 2 },
+            Params {
+                beam_width: 2,
+                prune_similars: true,
+            },
         )
         .solve()
         .best
@@ -196,7 +220,10 @@ mod tests {
             bifurcate_expander::<10>,
             is_never_similar,
             |_n| true,
-            Params { beam_width: 4 },
+            Params {
+                beam_width: 4,
+                prune_similars: true,
+            },
         )
         .solve();
 
@@ -214,7 +241,10 @@ mod tests {
             bifurcate_expander::<10>,
             |x, y| x.data() == y.data(),
             |_n| true,
-            Params { beam_width: 1000 },
+            Params {
+                beam_width: 1000,
+                prune_similars: true,
+            },
         )
         .solve();
 
@@ -228,7 +258,10 @@ mod tests {
             base_expander,
             is_never_similar,
             |_n| false,
-            Params { beam_width: 2 },
+            Params {
+                beam_width: 2,
+                prune_similars: true,
+            },
         )
         .solve();
         assert!(result.best.is_none());

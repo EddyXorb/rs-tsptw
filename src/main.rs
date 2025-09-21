@@ -7,7 +7,7 @@ use tsp::{TSPInstance, TSPSolution, solve_tsp};
 
 fn main() {
     let instance =
-        TSPInstance::from_file(PathBuf::from("instances/SolomonPotvinBengio/rc_201.2.txt"));
+        TSPInstance::from_file(PathBuf::from("instances/SolomonPotvinBengio/rc_201.3.txt"));
     // println!("{instance}");
 
     // let sol = TSPSolution::new(
@@ -31,7 +31,13 @@ fn main() {
     // println!("Sol has cost {}", sol.get_cost());
     // sol.print_times();
     // sol.is_valid();
-    let result = solve_tsp(instance, 100000);
+    let result = solve_tsp(
+        instance,
+        beamsearch::Params {
+            beam_width: 1000000,
+            prune_similars: false,
+        },
+    );
     if let Some(sol) = result {
         println!("{sol}");
     } else {
