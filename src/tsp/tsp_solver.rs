@@ -26,18 +26,19 @@ fn expander(node: &Node<TSPNode>, instance: &TSPInstance) -> Vec<TSPNode> {
     let remaining_nodes = (0..instance.len()).filter(|i| {
         (!visited_nodes.contains(i)
             || (visited_nodes.len() == instance.len() && i == visited_nodes.last().unwrap()))
-            && instance.window_of_contains(*i, time + instance.dist_from_to(last_target, *i))
+            && instance.window_of(*i).1 >= time + instance.dist_from_to(last_target, *i)
     });
 
     remaining_nodes
         .map(|next_target| TSPNode {
-            time: node.data().time + instance.dist_from_to(last_target, next_target),
+            time: (node.data().time + instance.dist_from_to(last_target, next_target))
+                .max(instance.window_of(next_target).0),
             target: next_target,
         })
         .collect()
 }
 
-pub fn solve_tsp(instance: TSPInstance) -> Option<TSPSolution> {
+pub fn solve_tsp(instance: TSPInstance, beam_width: usize) -> Option<TSPSolution> {
     let start_node = TSPNode {
         time: 0.0,
         target: 0,
@@ -47,7 +48,9 @@ pub fn solve_tsp(instance: TSPInstance) -> Option<TSPSolution> {
         vec![start_node],
         |node| expander(node, &instance),
         |_x, _y| false,
-        Params { beam_width: 1000000 },
+        Params {
+            beam_width: beam_width,
+        },
     )
     .solve();
 
@@ -86,14 +89,15 @@ mod tests {
     };
 
     fn create_test_instance() -> TSPInstance {
+        // Optimal: 0 -> 2 -> 1 -> 0, with total cost 1200 and 4 / 100 waiting times in first two steps
         TSPInstance::new(
             3,
             vec![
                 vec![0.0, 1000.0, 1.0],
                 vec![1000.0, 0.0, 1000.0],
-                vec![1000.0, 1000.0, 0.0],
+                vec![1000.0, 100.0, 0.0],
             ],
-            vec![(0.0, 2001.0), (1.0, 2000.0), (1.0, 2000.0)],
+            vec![(0.0, 1200.0), (200.0, 2000.0), (5.0, 2000.0)],
         )
     }
 
@@ -101,7 +105,7 @@ mod tests {
         TSPInstance::new(
             2,
             vec![vec![0.0, 1.0], vec![2.0, 0.0]],
-            vec![(0.0, 1.0), (1.0, 100.0)],
+            vec![(0.0, 1.0), (2.0, 100.0)],
         )
     }
 
@@ -116,7 +120,7 @@ mod tests {
 
         assert_eq!(expanded.len(), 1);
         let node = &expanded[0];
-        assert_eq!(node.time, 1.0);
+        assert_eq!(node.time, 2.0);
         assert_eq!(node.target, 1);
     }
 
@@ -124,15 +128,16 @@ mod tests {
     pub fn simple_test() {
         let instance = create_test_instance();
 
-        let result = solve_tsp(instance);
+        let result = solve_tsp(instance, 100);
 
         assert!(result.is_some());
 
         let sol = result.unwrap();
 
-        print!("{:?}", sol.get_instance());
+        println!("{:?}", sol.get_instance());
+        sol.print_times();
         assert_eq!(*sol.get_path(), vec![0, 2, 1, 0]);
-        assert_eq!(sol.get_cost(), 2001.0);
+        assert_eq!(sol.get_cost(), 1200.0);
         assert!(sol.is_valid());
     }
 }

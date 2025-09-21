@@ -26,7 +26,7 @@ impl TSPSolution {
 
         for pairs in self.path.windows(2) {
             cost += self.instance.dist_from_to(pairs[0], pairs[1]);
-            cost = cost.max(self.instance.window_of(pairs[0]).0); // for wait time
+            cost = cost.max(self.instance.window_of(pairs[1]).0); // for wait time
         }
         cost
     }
@@ -35,8 +35,9 @@ impl TSPSolution {
         let mut sum: f64 = 0.0;
         for node in self.path.windows(2) {
             let dist = self.get_instance().dist_from_to(node[0], node[1]);
+            sum += dist;
             let wait_time = sum.max(self.get_instance().window_of(node[1]).0) - sum;
-            sum += dist + wait_time;
+            sum += wait_time;
             println!(
                 "{:3} -> {:3} : current time {:<7.2} wait time {:<7.2} time sum {:<7.2} time window {:?}",
                 node[0],
