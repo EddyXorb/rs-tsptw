@@ -116,10 +116,7 @@ where
 #[cfg(test)]
 mod tests {
 
-    use crate::beamsearch::{
-        beamsearch_collection::BeamsearchNode,
-        beamsearch_solver::{BeamsearchSolver, Node, Params, is_never_similar},
-    };
+    use crate::beamsearch::beamsearch_solver::{BeamsearchSolver, Node, Params, is_never_similar};
 
     use super::super::mocks::TestNode;
 

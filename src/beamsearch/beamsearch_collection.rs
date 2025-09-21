@@ -138,7 +138,7 @@ where
 #[cfg(test)]
 mod tests {
 
-    use std::{iter::zip, process::Child};
+    use std::iter::zip;
 
     use super::super::mocks::TestNode;
     use super::*;

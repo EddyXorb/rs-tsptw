@@ -55,20 +55,15 @@ impl TSPSolution {
             return true;
         }
 
-        let mut time = 0.0;
         let mut last_visited = self.path[0];
+        let mut time = f64::max(0.0, self.instance.window_of(last_visited).0);
         let mut visited = HashSet::new();
         visited.insert(last_visited);
-
-        if self.instance.window_of(last_visited).0 > 0.0 {
-            println!("Invalid subsolution because first node's time_window starts at > 0.0.");
-            return false;
-        }
 
         for (cnt, &node) in self.path[1..self.path.len()].iter().enumerate() {
             if !visited.insert(node) && cnt < self.path.len() - 2 {
                 println!(
-                    "Invalid sobsolution because node {} was already visited",
+                    "Invalid subsolution because node {} was already visited",
                     node
                 );
                 return false;
@@ -77,10 +72,12 @@ impl TSPSolution {
             time += self.instance.dist_from_to(last_visited, node);
 
             let (start_time, end_time) = self.instance.window_of(node);
-            if !(start_time..=end_time).contains(&time) {
-                println! {"Invalid subsolution in node {cnt} (which is city {node}) because start/end time {start_time}/{end_time} of time window does not contain {time}"}
+            if time > end_time {
+                println! {"Invalid subsolution in node {cnt} (which is city {node}) because end time {end_time} of time window does not contain {time}"}
                 return false;
             }
+
+            time = time.max(start_time); // if we arrive too early we have to wait.
 
             last_visited = node;
         }
@@ -157,5 +154,37 @@ mod tests {
         let valid_solution = TSPSolution::new(create_test_instance(), vec![0, 1]);
 
         assert_eq!(valid_solution.get_cost(), 1.0);
+    }
+
+    #[test]
+    fn test_special_case_single_city_is_valid() {
+        let single_city_instance =
+            Arc::new(TSPInstance::new(1, vec![vec![0.0]], vec![(0.0, 100.0)]));
+        let sol = TSPSolution::new(single_city_instance, vec![0]);
+
+        assert!(sol.is_valid())
+    }
+
+    #[test]
+    fn test_lower_bound_of_time_window_makes_visitor_wait_if_arrives_too_early_for_single_city() {
+        let single_city_instance =
+            Arc::new(TSPInstance::new(1, vec![vec![0.0]], vec![(100.0, 101.0)]));
+        let sol = TSPSolution::new(single_city_instance, vec![0]);
+
+        assert_eq!(sol.get_cost(), 100.0);
+        assert!(sol.is_valid())
+    }
+
+    #[test]
+    fn test_lower_bound_of_time_window_makes_visitor_wait_if_arrives_too_early() {
+        let two_city_instance = Arc::new(TSPInstance::new(
+            2,
+            vec![vec![0.0, 0.0], vec![0.0, 0.0]],
+            vec![(0.0, 1000.0), (2000.0, 3000.0)],
+        ));
+        let sol = TSPSolution::new(two_city_instance, vec![0]);
+
+        assert_eq!(sol.get_cost(), 2000.0);
+        assert!(sol.is_valid())
     }
 }
