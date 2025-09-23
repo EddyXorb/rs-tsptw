@@ -23,31 +23,38 @@ pub fn is_never_similar<T>(_a: &Node<T>, _b: &Node<T>) -> bool {
     false
 }
 
-pub struct BeamsearchSolver<T, F, S, V>
+pub struct BeamsearchSolver<T, F, S, SHash, V>
 where
     T: BeamsearchNode + Send + Sync,
     F: Fn(&Node<T>) -> Vec<T>,
     S: Fn(&Node<T>, &Node<T>) -> bool,
+    SHash: Fn(&Node<T>) -> u32,
     V: Fn(&Node<T>) -> bool,
 {
     coll: BeamsearchCollection<T>,
     expander: F,
     is_similar: S,
+    similarity_hash: SHash,
     is_valid_solution: V,
     params: Params,
 }
 
-impl<T, F, S, V> BeamsearchSolver<T, F, S, V>
+impl<T, F, S, SHash, V> BeamsearchSolver<T, F, S, SHash, V>
 where
     T: BeamsearchNode + Send + Sync,
     F: Fn(&Node<T>) -> Vec<T> + Send + Sync,
-    S: Fn(&Node<T>, &Node<T>) -> bool,
+    S: Fn(&Node<T>, &Node<T>) -> bool + Send + Sync,
+    SHash: Fn(&Node<T>) -> u32,
     V: Fn(&Node<T>) -> bool,
 {
+    /// is_similar: function that returns true if two nodes are similar (and thus one can be pruned)
+    ///
+    /// similarity_hash: function that returns a hash value for a node, such that only nodes with the same hash value can be similar. This is mainly to reduce calculation time. Attention, if wrongly specified, it may lead to similar nodes not being pruned. If in doubt, use a function that always returns the same value.
     pub fn new(
         start_nodes: Vec<T>,
         expander: F,
         is_similar: S,
+        similarity_hash: SHash,
         is_valid_solution: V,
         params: Params,
     ) -> Self {
@@ -60,6 +67,7 @@ where
             coll,
             expander,
             is_similar,
+            similarity_hash,
             is_valid_solution,
             params,
         }
@@ -78,7 +86,8 @@ where
 
             let similar_start = Instant::now();
             let similars_removed = if self.params.prune_similars {
-                self.coll.remove_similars(&self.is_similar)
+                self.coll
+                    .remove_similars(&self.is_similar, &self.similarity_hash)
             } else {
                 0
             };
@@ -199,6 +208,7 @@ mod tests {
             vec![TestNode::default()],
             base_expander,
             is_never_similar,
+            |_| 0,
             |_n| true,
             Params {
                 beam_width: 2,
@@ -219,6 +229,7 @@ mod tests {
             vec![TestNode::default()],
             bifurcate_expander::<10>,
             is_never_similar,
+            |_| 0,
             |_n| true,
             Params {
                 beam_width: 4,
@@ -240,6 +251,25 @@ mod tests {
             vec![TestNode::default()],
             bifurcate_expander::<10>,
             |x, y| x.data() == y.data(),
+            |_| 0,
+            |_n| true,
+            Params {
+                beam_width: 1000,
+                prune_similars: true,
+            },
+        )
+        .solve();
+
+        assert_eq!(result.nr_expansions, 10 * 2);
+    }
+
+    #[test]
+    fn test_similarity_hash_does_not_reduce_outcome_when_correctly_specified() {
+        let result = BeamsearchSolver::new(
+            vec![TestNode::default()],
+            bifurcate_expander::<10>,
+            |x, y| x.data() == y.data(),
+            |n| n.data().dummy_level as u32,
             |_n| true,
             Params {
                 beam_width: 1000,
@@ -257,6 +287,7 @@ mod tests {
             vec![TestNode::default()],
             base_expander,
             is_never_similar,
+            |_| 0,
             |_n| false,
             Params {
                 beam_width: 2,

@@ -34,7 +34,7 @@ fn expander(node: &Node<TSPNode>, instance: &TSPInstance) -> Vec<TSPNode> {
 
     let last_target = node.data().target;
     let visited_nodes: Vec<usize> = node.ancestors().map(|x| x.data().target).collect();
-    let remaining_nodes = (0..instance.len()).filter(|i| {
+    let mut remaining_nodes = (0..instance.len()).filter(|i| {
         (!visited_nodes.contains(i)
             || (visited_nodes.len() == instance.len() && i == visited_nodes.last().unwrap()))
             && instance.window_of(*i).1 >= time + instance.dist_from_to(last_target, *i)
@@ -51,6 +51,20 @@ fn expander(node: &Node<TSPNode>, instance: &TSPInstance) -> Vec<TSPNode> {
         .collect()
 }
 
+fn is_similar(a: &Node<TSPNode>, b: &Node<TSPNode>) -> bool {
+    if a.data().target != b.data().target {
+        return false;
+    }
+
+    let mut a_cities: Vec<_> = a.ancestors().map(|node| node.data().target).collect();
+    let mut b_cities: Vec<_> = b.ancestors().map(|node| node.data().target).collect();
+
+    a_cities.sort();
+    b_cities.sort();
+
+    a_cities == b_cities
+}
+
 pub fn solve_tsp(instance: TSPInstance, params: Params) -> Option<TSPSolution> {
     let start_node = TSPNode {
         time: instance.window_of(0).0,
@@ -63,7 +77,8 @@ pub fn solve_tsp(instance: TSPInstance, params: Params) -> Option<TSPSolution> {
     let result = BeamsearchSolver::new(
         vec![start_node],
         |node| expander(node, &arc_instance),
-        |_x, _y| false,
+        |x, y| x.data().target == y.data().target && (x.data().time - y.data().time).abs() < 1.0,
+        |n| n.data().visited_node_hash,
         |n| make_tsp_solution_from_node(arc_instance.clone(), n).is_valid(),
         params,
     )

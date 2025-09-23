@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use super::beamsearch_solver::Node;
 use rayon::prelude::*;
 
@@ -21,7 +23,7 @@ where
     fn default() -> Self {
         Self {
             nodes: Default::default(),
-            sorted: true
+            sorted: true,
         }
     }
 }
@@ -43,15 +45,19 @@ where
         self.sorted = false;
     }
 
+    fn inner_sort(to_sort: &mut Vec<Node<T>>) {
+        to_sort.sort_by(|a, b| a.data().fitness().total_cmp(&b.data().fitness()));
+    }
+
     pub fn sort(&mut self) {
         if self.sorted {
             return;
         }
-        self.nodes
-            .sort_by(|a, b| a.data().fitness().total_cmp(&b.data().fitness()));
+        Self::inner_sort(&mut self.nodes);
 
         self.sorted = true;
     }
+
     pub fn keep_best(&mut self, target_size: usize) -> usize {
         if target_size >= self.len() {
             return 0;
@@ -73,15 +79,34 @@ where
             .min_by(|a, b| a.data().fitness().total_cmp(&b.data().fitness()))
     }
 
-    pub fn remove_similars<S>(&mut self, is_similar: S) -> usize
+    pub fn remove_similars<S, SHash>(&mut self, is_similar: S, similarity_hash: SHash) -> usize
+    where
+        S: Fn(&Node<T>, &Node<T>) -> bool + Send + Sync,
+        SHash: Fn(&Node<T>) -> u32,
+    {
+        let size_before = self.nodes.len();
+
+        let old_nodes = std::mem::take(&mut self.nodes);
+        let similarity_groups = Self::create_similarity_groups_from(old_nodes, similarity_hash);
+
+        self.nodes = similarity_groups
+            .into_par_iter()
+            .map(|(_, group)| Self::remove_similars_for(group, &is_similar))
+            .flatten()
+            .collect();
+
+        size_before - self.nodes.len()
+    }
+
+    fn remove_similars_for<S>(mut group: Vec<Node<T>>, is_similar: S) -> Vec<Node<T>>
     where
         S: Fn(&Node<T>, &Node<T>) -> bool,
     {
-        self.sort();
+        Self::inner_sort(&mut group);
 
-        let mut keep_mask = vec![true; self.nodes.len()];
+        let mut keep_mask = vec![true; group.len()];
 
-        for outer_i in (0..(self.nodes.len())).rev() {
+        for outer_i in (0..(group.len())).rev() {
             if !keep_mask[outer_i] {
                 continue;
             }
@@ -90,8 +115,8 @@ where
                     continue;
                 }
 
-                let o = &self.nodes[outer_i];
-                let i = &self.nodes[inner_i];
+                let o = &group[outer_i];
+                let i = &group[inner_i];
 
                 if is_similar(o, i) {
                     keep_mask[outer_i] = false;
@@ -99,16 +124,28 @@ where
             }
         }
 
-        let mut removed: usize = 0;
-        for i in (0..self.nodes.len()).rev() {
+        for i in (0..group.len()).rev() {
             if !keep_mask[i] {
-                self.nodes.swap_remove(i);
-                removed += 1;
-                self.sorted = false;
+                group.swap_remove(i);
             }
         }
+        group
+    }
 
-        removed
+    fn create_similarity_groups_from<SHash>(
+        nodes: Vec<Node<T>>,
+        similarity_hash: SHash,
+    ) -> HashMap<u32, Vec<Node<T>>>
+    where
+        T: BeamsearchNode + Send + Sync,
+        SHash: Fn(&Node<T>) -> u32,
+    {
+        let mut similarity_groups = HashMap::<u32, Vec<Node<T>>>::new();
+        for node in nodes {
+            let hash = similarity_hash(&node);
+            similarity_groups.entry(hash).or_default().push(node);
+        }
+        similarity_groups
     }
 }
 
@@ -271,7 +308,7 @@ mod tests {
 
         assert_eq!(coll.len(), 10);
 
-        let removed = coll.remove_similars(|a, b| a.data() == b.data());
+        let removed = coll.remove_similars(|a, b| a.data() == b.data(), |_| 0);
 
         assert_eq!(coll.len(), 1);
         assert_eq!(removed, 9);
@@ -301,8 +338,14 @@ mod tests {
         assert_eq!(coll_decreasing_fitness.len(), 10);
 
         //all are equal because all share the same level
-        coll_rising_fitness.remove_similars(|a, b| a.data().level() == b.data().level());
-        coll_decreasing_fitness.remove_similars(|a, b| a.data().level() == b.data().level());
+        coll_rising_fitness.remove_similars(
+            |a, b| a.data().level() == b.data().level(),
+            |n| n.data().level() as u32,
+        );
+        coll_decreasing_fitness.remove_similars(
+            |a, b| a.data().level() == b.data().level(),
+            |n| n.data().level() as u32,
+        );
 
         assert_eq!(coll_rising_fitness.len(), 1);
         assert_eq!(coll_decreasing_fitness.len(), 1);
