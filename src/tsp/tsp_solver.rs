@@ -3,11 +3,13 @@ use std::sync::Arc;
 use super::super::beamsearch::beamsearch_solver::{BeamsearchNode, BeamsearchSolver, Node, Params};
 use super::tsp_instance::TSPInstance;
 use super::tsp_solution::TSPSolution;
+use super::tsp_utility::calc_commutative_hash;
 
 struct TSPNode {
     pub time: f64,
     pub dist: f64,
     pub target: usize,
+    pub visited_node_hash: u32,
 }
 
 impl BeamsearchNode for TSPNode {
@@ -44,6 +46,7 @@ fn expander(node: &Node<TSPNode>, instance: &TSPInstance) -> Vec<TSPNode> {
                 .max(instance.window_of(next_target).0),
             target: next_target,
             dist: dist + instance.dist_from_to(last_target, next_target),
+            visited_node_hash: calc_commutative_hash(node.data().visited_node_hash, next_target),
         })
         .collect()
 }
@@ -53,6 +56,7 @@ pub fn solve_tsp(instance: TSPInstance, params: Params) -> Option<TSPSolution> {
         time: instance.window_of(0).0,
         target: 0,
         dist: 0.0,
+        visited_node_hash: 1,
     };
     let arc_instance = Arc::new(instance);
 
@@ -87,12 +91,8 @@ pub fn solve_tsp(instance: TSPInstance, params: Params) -> Option<TSPSolution> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        beamsearch::{beamsearch_solver::Node, Params},
-        tsp::{
-            tsp_solver::{expander, solve_tsp, TSPNode}, TSPInstance, TimeDist
-        },
-    };
+    use super::super::super::tsp::TimeDist;
+    use super::*;
 
     fn create_test_instance() -> TSPInstance {
         // Optimal: 0 -> 2 -> 1 -> 0, with total cost 1200 and 4 / 100 waiting times in first two steps
@@ -122,6 +122,7 @@ mod tests {
             time: 0.0,
             target: 0,
             dist: 0.0,
+            visited_node_hash: 0,
         });
         let expanded = expander(&node, &instance);
 

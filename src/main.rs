@@ -34,7 +34,7 @@ fn main() {
     let result = solve_tsp(
         instance,
         beamsearch::Params {
-            beam_width: 1000000,
+            beam_width: 100000,
             prune_similars: false,
         },
     );
