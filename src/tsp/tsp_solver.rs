@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use log::{info, debug};
 
 use super::super::beamsearch::beamsearch_solver::{BeamsearchNode, BeamsearchSolver, Node, Params};
 use super::tsp_instance::TSPInstance;
@@ -125,7 +126,7 @@ pub fn solve_tsp(instance: Arc<TSPInstance>, params: Params) -> Option<TSPSoluti
     }
 
     let best_node = result.best.unwrap();
-    println!(
+    info!(
         "Found best result with distance {},  nr_expansions {} and time {}",
         &best_node.data().dist,
         result.nr_expansions,
@@ -134,7 +135,7 @@ pub fn solve_tsp(instance: Arc<TSPInstance>, params: Params) -> Option<TSPSoluti
 
     let solution = make_tsp_solution_from_node(instance, &best_node);
 
-    println! {"Best solution: {:?}",solution.get_path()};
+    debug!("Best solution: {:?}", solution.get_path());
     assert!(solution.is_valid_subsolution());
 
     Some(solution)
@@ -235,7 +236,7 @@ mod tests {
 
         let sol = result.unwrap();
 
-        println!("{sol}");
+        debug!("{sol}");
         assert_eq!(*sol.get_path(), vec![0, 2, 1, 0]);
         assert_eq!(
             sol.get_time_distance(),

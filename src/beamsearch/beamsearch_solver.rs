@@ -3,6 +3,7 @@ pub use super::beamsearch_collection::BeamsearchNode;
 use super::parent_tree::ParentTreeNode;
 use rayon::prelude::*;
 use std::time::Instant;
+use log::{info, debug};
 
 pub type Node<T> = ParentTreeNode<T>;
 
@@ -106,7 +107,7 @@ where
 
             let iteration_duration = iteration_start.elapsed();
 
-            println!(
+            debug!(
                 "Coll.-size: {}. Expanded {} (in {:.0}ms) and removed {} similars (in {:.0}ms), shrinked (in {:.0}ms), total time {:.0}ms",
                 self.coll.len(),
                 nr_expanded,
@@ -120,7 +121,7 @@ where
     }
 
     fn create_result(self, all_expansions: usize, all_similars_removed: usize) -> SolverResult<T> {
-        println!(
+        info!(
             "Finished. Expanded {} and removed {} similars.",
             all_expansions, all_similars_removed
         );

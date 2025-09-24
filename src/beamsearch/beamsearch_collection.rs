@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use log::debug;
 
 use super::beamsearch_solver::Node;
 use rayon::prelude::*;
@@ -258,7 +259,7 @@ mod tests {
         for node in &coll {
             assert!(node.data().fitness() >= last_fitness);
             last_fitness = node.data().fitness();
-            println!("{}", last_fitness)
+            debug!("{}", last_fitness)
         }
     }
 

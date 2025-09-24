@@ -3,6 +3,7 @@ use std::fmt::Display;
 use std::iter::zip;
 use std::ops::Add;
 use std::sync::Arc;
+use log::warn;
 
 use super::TSPInstance;
 
@@ -117,7 +118,7 @@ impl TSPSolution {
 
         for (cnt, &node) in self.path[1..self.path.len()].iter().enumerate() {
             if !visited.insert(node) && cnt < self.path.len() - 2 {
-                println!(
+                warn!(
                     "Invalid subsolution because node {} was already visited",
                     node
                 );
@@ -128,7 +129,7 @@ impl TSPSolution {
 
             let (start_time, end_time) = self.instance.window_of(node);
             if time > end_time {
-                println! {"Invalid subsolution in node {cnt} (which is city {node}) because end time {end_time} of time window does not contain {time}"}
+                warn!("Invalid subsolution in node {cnt} (which is city {node}) because end time {end_time} of time window does not contain {time}");
                 return false;
             }
 
@@ -140,7 +141,7 @@ impl TSPSolution {
             && self.path.len() == self.get_instance().len() + 1
             && *last != self.path[0]
         {
-            println!("Invalid subsolution because last node is not start node");
+            warn!("Invalid subsolution because last node is not start node");
             return false;
         }
         true
