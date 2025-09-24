@@ -1,5 +1,5 @@
+use log::{debug, info};
 use std::sync::Arc;
-use log::{info, debug};
 
 use super::super::beamsearch::beamsearch_solver::{BeamsearchNode, BeamsearchSolver, Node, Params};
 use super::tsp_instance::TSPInstance;

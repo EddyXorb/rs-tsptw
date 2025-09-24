@@ -140,7 +140,7 @@ fn main() {
         let result = solve_tsp(
             best.solution.get_instance().clone(),
             beamsearch::Params {
-                beam_width: 100,
+                beam_width: 1e7 as usize,
                 prune_similars: true,
             },
         );
