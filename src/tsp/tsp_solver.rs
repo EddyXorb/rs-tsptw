@@ -28,27 +28,64 @@ fn make_tsp_solution_from_node(instance: Arc<TSPInstance>, node: &Node<TSPNode>)
     TSPSolution::new(instance, path)
 }
 
-fn expander(node: &Node<TSPNode>, instance: &TSPInstance) -> Vec<TSPNode> {
+fn expand(node: &Node<TSPNode>, instance: &TSPInstance) -> Vec<TSPNode> {
     let time = node.data().time;
     let dist = node.data().dist;
 
     let last_target = node.data().target;
     let visited_nodes: Vec<usize> = node.ancestors().map(|x| x.data().target).collect();
-    let mut remaining_nodes = (0..instance.len()).filter(|i| {
-        (!visited_nodes.contains(i)
-            || (visited_nodes.len() == instance.len() && i == visited_nodes.last().unwrap()))
-            && instance.window_of(*i).1 >= time + instance.dist_from_to(last_target, *i)
-    });
 
-    remaining_nodes
+    let reached_end = || {
+        visited_nodes.len()
+            == if instance.len() > 1 {
+                instance.len() + 1
+            } else {
+                1
+            }
+    };
+
+    if reached_end() {
+        return Vec::new();
+    }
+
+    let remaining_nodes: Vec<_> = (0..instance.len())
+        .filter(|i| {
+            !visited_nodes.contains(i)
+                || (visited_nodes.len() == instance.len() && i == visited_nodes.last().unwrap())
+        })
+        .collect();
+
+    if remaining_nodes
+        .iter()
+        .any(|i| instance.window_of(*i).1 < time)
+    // if one of the nodes cannot be targeted in future because of missed window
+    {
+        return Vec::new();
+    }
+
+    let max_possible_time = remaining_nodes
+        .iter()
+        .map(|n| instance.window_of(*n).1 as i32)
+        .min()
+        .unwrap() as f64;
+
+    let get_next_time_for = |next_target| {
+        (node.data().time + instance.dist_from_to(last_target, next_target))
+            .max(instance.window_of(next_target).0)
+    };
+
+    let expanded_nodes: Vec<_> = remaining_nodes
+        .into_iter()
+        .filter(|next_target| get_next_time_for(*next_target) <= max_possible_time)
         .map(|next_target| TSPNode {
-            time: (node.data().time + instance.dist_from_to(last_target, next_target))
-                .max(instance.window_of(next_target).0),
+            time: get_next_time_for(next_target),
             target: next_target,
             dist: dist + instance.dist_from_to(last_target, next_target),
             visited_node_hash: calc_commutative_hash(node.data().visited_node_hash, next_target),
         })
-        .collect()
+        .collect();
+
+    expanded_nodes
 }
 
 fn is_similar(a: &Node<TSPNode>, b: &Node<TSPNode>) -> bool {
@@ -76,7 +113,7 @@ pub fn solve_tsp(instance: TSPInstance, params: Params) -> Option<TSPSolution> {
 
     let result = BeamsearchSolver::new(
         vec![start_node],
-        |node| expander(node, &arc_instance),
+        |node| expand(node, &arc_instance),
         |x, y| x.data().target == y.data().target && (x.data().time - y.data().time).abs() < 1.0,
         |n| n.data().visited_node_hash,
         |n| make_tsp_solution_from_node(arc_instance.clone(), n).is_valid(),
@@ -139,13 +176,48 @@ mod tests {
             dist: 0.0,
             visited_node_hash: 0,
         });
-        let expanded = expander(&node, &instance);
+        let expanded = expand(&node, &instance);
 
         assert_eq!(expanded.len(), 1);
         let node = &expanded[0];
         assert_eq!(node.time, 2.0);
         assert_eq!(node.target, 1);
         assert_eq!(node.dist, 1.0);
+    }
+
+    #[test]
+    pub fn expander_does_not_consider_nodes_too_far_in_future() {
+        // we start at 0. We can only expand 1.
+        // 2 would result in time 2001, because of window 2000, which would make 1 unfullfillable
+        // 3 would result in time 2001, because of distance 2000, which would make 1 unfullfillable
+        let instance = TSPInstance::new(
+            4,
+            vec![
+                vec![0.0, 0.0, 0.0, 2001.0],
+                vec![0.0, 0.0, 0.0, 0.0],
+                vec![0.0, 0.0, 0.0, 0.0],
+                vec![0.0, 0.0, 0.0, 0.0],
+            ],
+            vec![
+                (0.0, 3000.0),
+                (1000.0, 2000.0),
+                (2001.0, 3000.0),
+                (0.0, 4000.0),
+            ],
+        );
+        let node = Node::new_root(TSPNode {
+            time: 0.0,
+            target: 0,
+            dist: 0.0,
+            visited_node_hash: 0,
+        });
+        let expanded = expand(&node, &instance);
+
+        assert_eq!(expanded.len(), 1);
+        let node = &expanded[0];
+        assert_eq!(node.time, 1000.0);
+        assert_eq!(node.target, 1);
+        assert_eq!(node.dist, 0.0);
     }
 
     #[test]
