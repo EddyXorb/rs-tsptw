@@ -132,7 +132,7 @@ fn main() {
         let result = solve_tsp(
             best.solution.get_instance().clone(),
             beamsearch::Params {
-                beam_width: 1000000,
+                beam_width: 100,
                 prune_similars: true,
             },
         );
@@ -170,5 +170,19 @@ fn main() {
                 .or_insert(SolutionType::NotFound);
         }
     }
-    info!("Summary {:?}", solution_types);
+
+    // Write results to last_result.txt
+    let mut result_content = String::new();
+
+    // Collect into vector and sort by name
+    let mut sorted_results: Vec<(&String, &SolutionType)> = solution_types.iter().collect();
+    sorted_results.sort_by_key(|(name, _)| *name);
+
+    for (name, sol_type) in sorted_results {
+        result_content.push_str(&format!("{}: {:?}\n", name, sol_type));
+    }
+
+    std::fs::write("last_result.txt", &result_content).expect("Failed to write last_result.txt");
+
+    info!("\n{result_content}");
 }
