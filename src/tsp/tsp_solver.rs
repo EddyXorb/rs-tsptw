@@ -102,21 +102,20 @@ fn is_similar(a: &Node<TSPNode>, b: &Node<TSPNode>) -> bool {
     a_cities == b_cities
 }
 
-pub fn solve_tsp(instance: TSPInstance, params: Params) -> Option<TSPSolution> {
+pub fn solve_tsp(instance: Arc<TSPInstance>, params: Params) -> Option<TSPSolution> {
     let start_node = TSPNode {
         time: instance.window_of(0).0,
         target: 0,
         dist: 0.0,
         visited_node_hash: 1,
     };
-    let arc_instance = Arc::new(instance);
 
     let result = BeamsearchSolver::new(
         vec![start_node],
-        |node| expand(node, &arc_instance),
+        |node| expand(node, &instance),
         |x, y| x.data().target == y.data().target && (x.data().time - y.data().time).abs() < 1.0,
         |n| n.data().visited_node_hash,
-        |n| make_tsp_solution_from_node(arc_instance.clone(), n).is_valid(),
+        |n| make_tsp_solution_from_node(instance.clone(), n).is_valid(),
         params,
     )
     .solve();
@@ -133,7 +132,7 @@ pub fn solve_tsp(instance: TSPInstance, params: Params) -> Option<TSPSolution> {
         &best_node.data().time
     );
 
-    let solution = make_tsp_solution_from_node(arc_instance, &best_node);
+    let solution = make_tsp_solution_from_node(instance, &best_node);
 
     println! {"Best solution: {:?}",solution.get_path()};
     assert!(solution.is_valid_subsolution());
@@ -225,7 +224,7 @@ mod tests {
         let instance = create_test_instance();
 
         let result = solve_tsp(
-            instance,
+            Arc::new(instance),
             Params {
                 beam_width: 100,
                 prune_similars: true,

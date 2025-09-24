@@ -63,7 +63,7 @@ impl TSPSolution {
         Self { instance, path }
     }
 
-    pub fn get_instance(&self) -> &TSPInstance {
+    pub fn get_instance(&self) -> &Arc<TSPInstance> {
         &self.instance
     }
 

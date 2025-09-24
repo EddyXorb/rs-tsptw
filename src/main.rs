@@ -4,22 +4,20 @@
 mod beamsearch;
 mod tsp;
 
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::{fs::read, path::PathBuf};
 use tsp::{TSPInstance, TSPSolution, solve_tsp};
 
-pub struct BestKnown<'a> {
-    pub best: TSPSolution<'a>,
+pub struct BestKnown {
+    pub solution: TSPSolution,
     pub name: String,
 }
 
-pub fn read_all_instances(
-    best_known_file: PathBuf,
-) -> (Vec<Box<TSPInstance>>, Vec<BestKnown<'static>>) {
+pub fn read_all_instances(best_known_file: PathBuf) -> Vec<BestKnown> {
     assert!(best_known_file.is_file());
 
     let mut best_knowns = Vec::<BestKnown>::new();
-    let mut instances = Vec::<Box<TSPInstance>>::new();
 
     let raw = std::fs::read_to_string(best_known_file).unwrap();
     let lines = raw.lines().skip(1);
@@ -35,68 +33,89 @@ pub fn read_all_instances(
             .chain(std::iter::once(0))
             .collect();
 
-        let instance = Box::new(TSPInstance::from_file(PathBuf::from(format!(
+        let instance = Arc::new(TSPInstance::from_file(PathBuf::from(format!(
             "instances/SolomonPotvinBengio/{}",
             &instance_file
         ))));
-        instances.push(instance);
 
-        let sol = TSPSolution::new(&instance, best_path);
+        let solution = TSPSolution::new(instance.clone(), best_path);
 
-        if (sol.get_time_distance().dist - best_dist).abs() > 0.1
+        if (solution.get_time_distance().dist - best_dist).abs() > 0.1
         // check that path and best known are correctly calculated
         {
             println!(
                 "Instance {instance_file} has best known distance {best_dist}, but calculatedsolution distance {}",
-                sol.get_time_distance().dist
+                solution.get_time_distance().dist
             );
         }
 
         best_knowns.push(BestKnown {
-            best: sol,
+            solution,
             name: instance_file.to_string(),
         });
     }
-    (instances, best_knowns)
+    best_knowns
 }
 
+#[derive(Debug)]
+enum SolutionType {
+    Better,
+    Equal,
+    Worse,
+    NotFound,
+}
 fn main() {
-    let (instances, best_knowns) = read_all_instances(PathBuf::from(
+    let best_knowns = read_all_instances(PathBuf::from(
         "instances/SolomonPotvinBengio/best_known.txt",
     ));
 
     println!("Read {} instances", best_knowns.len());
 
+    let mut solutionTypes = HashMap::<String, SolutionType>::new();
+
     for best in best_knowns {
-        println!("Going to solve {}..", best.name);
+        println!("Going to solve {}..", &best.name);
 
         let result = solve_tsp(
-            best.best.get_instance(),
+            best.solution.get_instance().clone(),
             beamsearch::Params {
                 beam_width: 1000000,
                 prune_similars: true,
             },
         );
         if let Some(sol) = result {
-            println!("{sol}");
+            if sol.get_time_distance().dist < best.solution.get_time_distance().dist - 0.01 {
+                println!("FOUND BETTER SOLUTION THAN BEST KNOWN!");
+
+                solutionTypes
+                    .entry(best.name.clone())
+                    .or_insert(SolutionType::Better);
+            } else if sol.get_time_distance().dist > best.solution.get_time_distance().dist + 0.01 {
+                println!("Worse solution found.");
+
+                solutionTypes
+                    .entry(best.name.clone())
+                    .or_insert(SolutionType::Worse);
+            } else {
+                println!("Equally good solution found.");
+
+                solutionTypes
+                    .entry(best.name.clone())
+                    .or_insert(SolutionType::Equal);
+            }
+            println!(
+                "Found solution for {} with distance {} compared to {} in best known.",
+                &best.name,
+                sol.get_time_distance().dist,
+                best.solution.get_time_distance().dist
+            )
         } else {
             println!("Did not find a valid solution.");
+
+            solutionTypes
+                .entry(best.name)
+                .or_insert(SolutionType::NotFound);
         }
     }
-    // println!("Sol has cost {}", sol.get_cost());
-    // sol.print_times();
-    // sol.is_valid();
-    // let result = solve_tsp(
-    //     instance,
-    //     beamsearch::Params {
-    //         beam_width: 1000000,
-    //         prune_similars: true,
-    //     },
-    // );
-    // if let Some(sol) = result {
-    //     println!("{sol}");
-    // } else {
-    //     println!("Did not find a valid solution.");
-    // }
-    // print!("{:?}", sol.get_path());
+    println!("Summary {:?}", solutionTypes);
 }
