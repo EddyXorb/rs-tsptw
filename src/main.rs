@@ -115,6 +115,12 @@ enum SolutionType {
     Worse,
     NotFound,
 }
+
+#[derive(Debug)]
+struct SolutionResult {
+    solution_type: SolutionType,
+    duration_secs: f64,
+}
 fn main() {
     init_logger();
 
@@ -124,10 +130,12 @@ fn main() {
 
     info!("Read {} instances", best_knowns.len());
 
-    let mut solution_types = HashMap::<String, SolutionType>::new();
+    let mut solution_results = HashMap::<String, SolutionResult>::new();
 
     for best in best_knowns {
         info!("Going to solve {}..", &best.name);
+
+        let start_time = std::time::Instant::now();
 
         let result = solve_tsp(
             best.solution.get_instance().clone(),
@@ -136,38 +144,48 @@ fn main() {
                 prune_similars: true,
             },
         );
-        if let Some(sol) = result {
-            if sol.get_time_distance().dist < best.solution.get_time_distance().dist - 0.01 {
-                info!("FOUND BETTER SOLUTION THAN BEST KNOWN!");
 
-                solution_types
-                    .entry(best.name.clone())
-                    .or_insert(SolutionType::Better);
+        let duration_secs = start_time.elapsed().as_secs_f64();
+
+        if let Some(sol) = result {
+            let solution_type = if sol.get_time_distance().dist
+                < best.solution.get_time_distance().dist - 0.01
+            {
+                info!("FOUND BETTER SOLUTION THAN BEST KNOWN!");
+                SolutionType::Better
             } else if sol.get_time_distance().dist > best.solution.get_time_distance().dist + 0.01 {
                 info!("Worse solution found.");
-
-                solution_types
-                    .entry(best.name.clone())
-                    .or_insert(SolutionType::Worse);
+                SolutionType::Worse
             } else {
                 info!("Equally good solution found.");
+                SolutionType::Equal
+            };
 
-                solution_types
-                    .entry(best.name.clone())
-                    .or_insert(SolutionType::Equal);
-            }
+            solution_results.insert(
+                best.name.clone(),
+                SolutionResult {
+                    solution_type,
+                    duration_secs,
+                },
+            );
+
             info!(
-                "Found solution for {} with distance {} compared to {} in best known.",
+                "Found solution for {} with distance {} compared to {} in best known. (took {:.2}s)",
                 &best.name,
                 sol.get_time_distance().dist,
-                best.solution.get_time_distance().dist
+                best.solution.get_time_distance().dist,
+                duration_secs
             )
         } else {
             info!("Did not find a valid solution.");
 
-            solution_types
-                .entry(best.name)
-                .or_insert(SolutionType::NotFound);
+            solution_results.insert(
+                best.name,
+                SolutionResult {
+                    solution_type: SolutionType::NotFound,
+                    duration_secs,
+                },
+            );
         }
     }
 
@@ -175,11 +193,16 @@ fn main() {
     let mut result_content = String::new();
 
     // Collect into vector and sort by name
-    let mut sorted_results: Vec<(&String, &SolutionType)> = solution_types.iter().collect();
+    let mut sorted_results: Vec<(&String, &SolutionResult)> = solution_results.iter().collect();
     sorted_results.sort_by_key(|(name, _)| *name);
 
-    for (name, sol_type) in sorted_results {
-        result_content.push_str(&format!("{}: {:?}\n", name, sol_type));
+    for (name, solution_result) in sorted_results {
+        result_content.push_str(&format!(
+            "{:<15} {:>8} {:>8.2}s\n",
+            name, 
+            format!("{:?}", solution_result.solution_type), 
+            solution_result.duration_secs
+        ));
     }
 
     std::fs::write("last_result.txt", &result_content).expect("Failed to write last_result.txt");
